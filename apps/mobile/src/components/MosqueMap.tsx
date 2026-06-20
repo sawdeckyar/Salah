@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
 import { WebView } from 'react-native-webview';
 import {
@@ -11,13 +11,10 @@ import { DEFAULT_MADHAB, DEFAULT_METHOD } from '../config';
 import { formatHHmm, formatTime, prayerLabel } from '../format';
 
 /**
- * Vector map rendered with MapLibre GL JS inside a WebView. Vector tiles give
- * smooth zoom, rotation and tilt, and a Google/Apple-like look — while staying
- * key-free (OpenFreeMap) and runnable in Expo Go (no native module).
- *
- * Tapping a marker opens a popup showing the next prayer; "Open" posts the id
- * back to RN. Panning posts the new center so the screen can offer "search this
- * area". Pass `style={{ flex: 1 }}` for a full-screen map.
+ * Vector map (MapLibre GL JS in a WebView) — key-free (OpenFreeMap), runs in
+ * Expo Go. The map is built ONCE; marker updates are injected so the user's
+ * pan/zoom is preserved (e.g. after "search this area"). Auto-fit happens only
+ * on the first batch of markers.
  */
 export type MapStyle = 'Streets' | 'Light' | 'Bright' | 'Satellite';
 
@@ -26,27 +23,73 @@ export function MosqueMap({
   mosques,
   onSelect,
   onMove,
-  height,
   style,
-  interactive = true,
+  height,
   defaultStyle = 'Streets',
 }: {
-  center: Coordinates;
+  center: Coordinates; // user location — the map's initial view + "me" dot
   mosques: Mosque[];
   onSelect?: (id: string) => void;
   onMove?: (center: Coordinates) => void;
-  height?: number;
   style?: ViewStyle;
-  interactive?: boolean;
+  height?: number;
   defaultStyle?: MapStyle;
 }) {
   const theme = useTheme();
+  const webRef = useRef<WebView>(null);
 
-  // Memoize so panning / parent re-renders don't rebuild & reload the WebView.
+  // Stable HTML — does NOT depend on `mosques`, so updating markers never
+  // reloads the WebView (preserving the viewport).
   const html = useMemo(
-    () => buildHtml(center, mosques, theme.primary, interactive, defaultStyle),
-    [center.latitude, center.longitude, mosques, theme.primary, interactive, defaultStyle],
+    () => buildHtml(center, theme.primary, defaultStyle),
+    [center.latitude, center.longitude, theme.primary, defaultStyle],
   );
+
+  // Marker payload (with each mosque's next prayer), recomputed on data change.
+  const pointsJson = useMemo(() => {
+    const now = new Date();
+    const points = mosques
+      .filter((m) => Number.isFinite(m.location.latitude))
+      .map((m) => {
+        const status = getPrayerStatus(m.location, now, {
+          method: DEFAULT_METHOD,
+          madhab: DEFAULT_MADHAB,
+        });
+        const iqamaRaw =
+          status.next !== 'none' && status.next !== 'sunrise'
+            ? m.times?.iqama?.[status.next]
+            : undefined;
+        return {
+          id: m.id,
+          lat: m.location.latitude,
+          lon: m.location.longitude,
+          name: m.name,
+          hasTimes: !!m.times?.iqama || (m.times?.jumuah?.length ?? 0) > 0,
+          dist:
+            m.distanceMeters != null
+              ? m.distanceMeters < 1000
+                ? `${Math.round(m.distanceMeters)} m`
+                : `${(m.distanceMeters / 1000).toFixed(1)} km`
+              : '',
+          next: status.next === 'none' ? '' : prayerLabel(status.next),
+          nextAdhan: status.nextTime ? formatTime(status.nextTime) : '',
+          nextIqama: iqamaRaw ? formatHHmm(iqamaRaw) : '',
+        };
+      });
+    return JSON.stringify(points);
+  }, [mosques]);
+
+  const inject = () => {
+    webRef.current?.injectJavaScript(
+      `window.__recv && window.__recv(${pointsJson}); true;`,
+    );
+  };
+
+  // Push marker updates whenever the data changes (map already loaded).
+  useEffect(() => {
+    inject();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pointsJson]);
 
   return (
     <View
@@ -58,9 +101,11 @@ export function MosqueMap({
       ]}
     >
       <WebView
+        ref={webRef}
         originWhitelist={['*']}
         source={{ html }}
         style={{ backgroundColor: theme.surface2 }}
+        onLoadEnd={inject}
         onMessage={(e) => {
           try {
             const msg = JSON.parse(e.nativeEvent.data);
@@ -68,7 +113,7 @@ export function MosqueMap({
             else if (msg.t === 'move')
               onMove?.({ latitude: msg.lat, longitude: msg.lng });
           } catch {
-            // ignore malformed messages
+            // ignore
           }
         }}
         scrollEnabled={false}
@@ -77,46 +122,8 @@ export function MosqueMap({
   );
 }
 
-function buildHtml(
-  center: Coordinates,
-  mosques: Mosque[],
-  accent: string,
-  interactive: boolean,
-  defaultStyle: MapStyle,
-): string {
-  const now = new Date();
-  const points = mosques
-    .filter((m) => Number.isFinite(m.location.latitude))
-    .map((m) => {
-      const status = getPrayerStatus(m.location, now, {
-        method: DEFAULT_METHOD,
-        madhab: DEFAULT_MADHAB,
-      });
-      const nextName = status.next === 'none' ? '' : prayerLabel(status.next);
-      const nextAdhan = status.nextTime ? formatTime(status.nextTime) : '';
-      const iqamaRaw =
-        status.next !== 'none' && status.next !== 'sunrise'
-          ? m.times?.iqama?.[status.next]
-          : undefined;
-      return {
-        id: m.id,
-        lat: m.location.latitude,
-        lon: m.location.longitude,
-        name: m.name,
-        hasTimes: !!m.times?.iqama || (m.times?.jumuah?.length ?? 0) > 0,
-        dist:
-          m.distanceMeters != null
-            ? m.distanceMeters < 1000
-              ? `${Math.round(m.distanceMeters)} m`
-              : `${(m.distanceMeters / 1000).toFixed(1)} km`
-            : '',
-        next: nextName,
-        nextAdhan,
-        nextIqama: iqamaRaw ? formatHHmm(iqamaRaw) : '',
-      };
-    });
-  const data = JSON.stringify(points);
-  const c = JSON.stringify([center.longitude, center.latitude]); // MapLibre = [lng, lat]
+function buildHtml(center: Coordinates, accent: string, defaultStyle: MapStyle): string {
+  const c = JSON.stringify([center.longitude, center.latitude]); // [lng, lat]
 
   return `<!DOCTYPE html><html><head>
 <meta charset="utf-8" />
@@ -140,11 +147,14 @@ function buildHtml(
 </head><body>
 <div id="map"></div>
 <div class="styler" id="styler"></div>
+<script>
+  // Buffer marker data until the map is ready (injection may arrive early).
+  window.__data = null;
+  window.__recv = function (pts) { window.__data = pts; if (window.__render) window.__render(pts); };
+</script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>
   var center = ${c};
-  var mosques = ${data};
-
   var SAT = {
     version: 8,
     sources: { sat: { type: 'raster', tileSize: 256,
@@ -160,14 +170,10 @@ function buildHtml(
   };
 
   var map = new maplibregl.Map({
-    container: 'map',
-    style: STYLES['${defaultStyle}'] || STYLES['Streets'],
-    center: center,
-    zoom: 12,
-    attributionControl: true,
-    interactive: ${interactive ? 'true' : 'false'}
+    container: 'map', style: STYLES['${defaultStyle}'] || STYLES['Streets'],
+    center: center, zoom: 13, attributionControl: true
   });
-  ${interactive ? "map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-left');" : ''}
+  map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-left');
 
   var meEl = document.createElement('div'); meEl.className = 'me';
   new maplibregl.Marker({ element: meEl }).setLngLat(center).addTo(map);
@@ -176,41 +182,44 @@ function buildHtml(
     if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'open', id: id }));
   };
 
-  var bounds = new maplibregl.LngLatBounds();
-  bounds.extend(center);
-  mosques.forEach(function (m) {
-    var el = document.createElement('div');
-    el.className = 'pin ' + (m.hasTimes ? 'has' : 'no');
-    var idJson = JSON.stringify(m.id);
-    var nextLine = m.next
-      ? '<div class="n">Next: ' + m.next + ' ' + m.nextAdhan +
-        (m.nextIqama ? ' <small>· Iqama ' + m.nextIqama + '</small>' : '') + '</div>'
-      : '';
-    var html = '<div>' + m.name + '</div>' +
-      (m.dist ? '<div class="d">' + m.dist + ' away</div>' : '') +
-      nextLine +
-      '<div class="open" onclick=\\'openMosque(' + idJson + ')\\'>Open details &rsaquo;</div>';
-    var popup = new maplibregl.Popup({ offset: 22, closeButton: false }).setHTML(html);
-    new maplibregl.Marker({ element: el, anchor: 'bottom' })
-      .setLngLat([m.lon, m.lat]).setPopup(popup).addTo(map);
-    bounds.extend([m.lon, m.lat]);
-  });
+  var markers = [];
+  var didFit = false;
+  window.__render = function (pts) {
+    markers.forEach(function (mk) { mk.remove(); });
+    markers = [];
+    var bounds = new maplibregl.LngLatBounds();
+    bounds.extend(center);
+    pts.forEach(function (m) {
+      var el = document.createElement('div');
+      el.className = 'pin ' + (m.hasTimes ? 'has' : 'no');
+      var nextLine = m.next
+        ? '<div class="n">Next: ' + m.next + ' ' + m.nextAdhan +
+          (m.nextIqama ? ' <small>· Iqama ' + m.nextIqama + '</small>' : '') + '</div>'
+        : '';
+      var html = '<div>' + m.name + '</div>' +
+        (m.dist ? '<div class="d">' + m.dist + ' away</div>' : '') + nextLine +
+        '<div class="open" onclick=\\'openMosque(' + JSON.stringify(m.id) + ')\\'>Open details &rsaquo;</div>';
+      var popup = new maplibregl.Popup({ offset: 22, closeButton: false }).setHTML(html);
+      var mk = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([m.lon, m.lat]).setPopup(popup).addTo(map);
+      markers.push(mk);
+      bounds.extend([m.lon, m.lat]);
+    });
+    // Fit only the first time markers arrive; later updates keep the viewport.
+    if (!didFit && pts.length) {
+      didFit = true;
+      if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 0 });
+    }
+  };
 
-  map.on('load', function () {
-    if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 0 });
-  });
+  map.on('load', function () { if (window.__data) window.__render(window.__data); });
 
-  // Report user-initiated pans so the app can offer "search this area".
-  ${interactive ? `
   map.on('moveend', function (e) {
-    if (!e.originalEvent) return; // ignore programmatic moves (fitBounds)
+    if (!e.originalEvent) return; // ignore programmatic moves
     var ctr = map.getCenter();
     if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'move', lat: ctr.lat, lng: ctr.lng }));
   });
-  ` : ''}
 
-  // Style switcher.
-  ${interactive ? `
   var current = '${defaultStyle}';
   var styler = document.getElementById('styler');
   Object.keys(STYLES).forEach(function (name) {
@@ -219,21 +228,17 @@ function buildHtml(
     if (name === current) b.className = 'active';
     b.onclick = function () {
       if (name === current) return;
-      current = name;
-      map.setStyle(STYLES[name]);
+      current = name; map.setStyle(STYLES[name]);
       Array.prototype.forEach.call(styler.children, function (ch) {
         ch.className = (ch.textContent === name) ? 'active' : '';
       });
     };
     styler.appendChild(b);
   });
-  ` : "document.getElementById('styler').style.display='none';"}
 </script>
 </body></html>`;
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    overflow: 'hidden',
-  },
+  wrap: { overflow: 'hidden' },
 });

@@ -73,11 +73,15 @@ export default function NearbyScreen() {
 
   const mosques = nearby.status === 'ready' ? nearby.mosques : [];
   const count = mosques.length;
+  // Map view is anchored to the user's location; searchOrigin only drives the
+  // Overpass query (so "search this area" updates pins without moving the map).
+  const userCoords =
+    location.status === 'ready' ? location.coords : searchOrigin;
 
   return (
     <View style={styles.fill}>
       <MosqueMap
-        center={searchOrigin}
+        center={userCoords}
         mosques={mosques}
         onSelect={open}
         onMove={setMapCenter}
