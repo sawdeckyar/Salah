@@ -13,6 +13,7 @@ export function MosqueMap(_props: {
   center: Coordinates;
   mosques: Mosque[];
   onSelect?: (id: string) => void;
+  onMove?: (center: Coordinates) => void;
   height?: number;
   style?: ViewStyle;
   interactive?: boolean;

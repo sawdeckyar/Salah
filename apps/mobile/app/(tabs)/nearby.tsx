@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
   ActivityIndicator,
@@ -8,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { haversineMeters, type Coordinates } from '@salah/core';
 import { MosqueCard } from '../../src/components/MosqueCard';
 import { MosqueMap } from '../../src/components/MosqueMap';
 import { BottomSheet } from '../../src/components/BottomSheet';
@@ -16,19 +18,36 @@ import { useLocation } from '../../src/hooks/useLocation';
 import { useNearbyMosques } from '../../src/hooks/useNearbyMosques';
 import { useTheme } from '../../src/theme';
 
+// How far the map must be panned before "Search this area" appears.
+const RESEARCH_THRESHOLD_M = 2500;
+
 export default function NearbyScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const location = useLocation();
-  const coords = location.status === 'ready' ? location.coords : null;
-  const nearby = useNearbyMosques(coords);
 
+  // The point we search around — starts at the user, moves when they tap
+  // "Search this area" after panning the map.
+  const [searchOrigin, setSearchOrigin] = useState<Coordinates | null>(null);
+  const [mapCenter, setMapCenter] = useState<Coordinates | null>(null);
+
+  useEffect(() => {
+    if (location.status === 'ready' && !searchOrigin) {
+      setSearchOrigin(location.coords);
+    }
+  }, [location.status, searchOrigin]);
+
+  const nearby = useNearbyMosques(searchOrigin);
   const open = (id: string) =>
     router.push({ pathname: '/mosque/[id]', params: { id } });
 
-  // Until we have coordinates, show a simple full-screen state.
-  if (!coords) {
+  const canResearch =
+    mapCenter != null &&
+    searchOrigin != null &&
+    haversineMeters(mapCenter, searchOrigin) > RESEARCH_THRESHOLD_M;
+
+  if (!searchOrigin) {
     return (
       <View style={[styles.fill, { backgroundColor: theme.bg, paddingTop: insets.top }]}>
         {location.status === 'loading' && <Loading label="Finding your location…" />}
@@ -57,10 +76,15 @@ export default function NearbyScreen() {
 
   return (
     <View style={styles.fill}>
-      {/* Full-screen map */}
-      <MosqueMap center={coords} mosques={mosques} onSelect={open} style={{ flex: 1 }} />
+      <MosqueMap
+        center={searchOrigin}
+        mosques={mosques}
+        onSelect={open}
+        onMove={setMapCenter}
+        style={{ flex: 1 }}
+      />
 
-      {/* Floating header pill */}
+      {/* Header pill */}
       <View style={[styles.headerWrap, { top: insets.top + 8 }]} pointerEvents="box-none">
         <View style={[styles.headerPill, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.headerTitle, { color: theme.text }]}>Nearby mosques</Text>
@@ -70,15 +94,24 @@ export default function NearbyScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* "Search this area" appears after panning */}
+        {canResearch && (
+          <TouchableOpacity
+            onPress={() => mapCenter && setSearchOrigin(mapCenter)}
+            style={[styles.researchBtn, { backgroundColor: theme.primary }]}
+          >
+            <Text style={styles.researchText}>⌖ Search this area</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Draggable bottom sheet with the list */}
       <BottomSheet
         header={
           <Text style={[styles.sheetTitle, { color: theme.text }]}>
             {nearby.status === 'loading'
               ? 'Searching…'
-              : `${count} mosque${count === 1 ? '' : 's'} nearby`}
+              : `${count} mosque${count === 1 ? '' : 's'} here`}
           </Text>
         }
       >
@@ -100,8 +133,8 @@ export default function NearbyScreen() {
         {nearby.status === 'ready' &&
           (count === 0 ? (
             <Message
-              title="No mosques found nearby"
-              detail="Try refreshing, or move the map and search again in a later version."
+              title="No mosques found here"
+              detail="Pan the map and tap “Search this area”, or refresh."
             />
           ) : (
             <ScrollView
@@ -125,6 +158,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
+    gap: 8,
   },
   headerPill: {
     flexDirection: 'row',
@@ -141,6 +175,17 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   headerTitle: { fontSize: 15, fontWeight: '700' },
+  researchBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  researchText: { color: '#fff', fontWeight: '800', fontSize: 14 },
   sheetTitle: { fontSize: 16, fontWeight: '800' },
   sheetCenter: { paddingVertical: 28, alignItems: 'center' },
   listContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },

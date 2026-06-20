@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { findNearbyMosques, type Coordinates, type Mosque } from '@salah/core';
 import { DEFAULT_RADIUS_M, httpDeps } from '../config';
 import { registrySeed } from '../data/registrySeed';
 import { rememberMosques } from '../data/mosqueStore';
+import { applyLocalTimes, subscribeLocal } from '../data/localSubmissions';
 
 export type NearbyState =
   | { status: 'idle' }
@@ -11,28 +12,34 @@ export type NearbyState =
   | { status: 'ready'; mosques: Mosque[] };
 
 /**
- * Fetch mosques near a point (OSM Overpass) with the community registry overlaid
- * and sorted by distance. Re-runs when `origin` changes.
+ * Fetch mosques near a point (OSM Overpass) with the community registry and any
+ * local crowdsourced times overlaid, sorted by distance. Re-runs when `origin`
+ * changes, and re-applies local submissions live when they change.
  */
 export function useNearbyMosques(
   origin: Coordinates | null,
   radiusMeters: number = DEFAULT_RADIUS_M,
 ): NearbyState & { refresh: () => void } {
-  const [state, setState] = useState<NearbyState>({ status: 'idle' });
+  const [raw, setRaw] = useState<NearbyState>({ status: 'idle' });
+  const [localVersion, setLocalVersion] = useState(0);
+
+  useEffect(
+    () => subscribeLocal(() => setLocalVersion((v) => v + 1)),
+    [],
+  );
 
   const load = useCallback(async () => {
     if (!origin) return;
-    setState({ status: 'loading' });
+    setRaw({ status: 'loading' });
     try {
       const mosques = await findNearbyMosques(
         origin,
         { radiusMeters, registry: registrySeed },
         httpDeps,
       );
-      rememberMosques(mosques);
-      setState({ status: 'ready', mosques });
+      setRaw({ status: 'ready', mosques });
     } catch (e) {
-      setState({
+      setRaw({
         status: 'error',
         message:
           e instanceof Error ? e.message : 'Could not load nearby mosques.',
@@ -43,6 +50,15 @@ export function useNearbyMosques(
   useEffect(() => {
     load();
   }, [load]);
+
+  // Overlay local crowdsourced times (re-derives when raw or local data change).
+  const state = useMemo<NearbyState>(() => {
+    if (raw.status !== 'ready') return raw;
+    const mosques = applyLocalTimes(raw.mosques);
+    rememberMosques(mosques);
+    return { status: 'ready', mosques };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raw, localVersion]);
 
   return { ...state, refresh: load };
 }

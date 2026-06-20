@@ -1,36 +1,50 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import {
   applyConfirmation,
   calculatePrayerTimes,
   candidateFromExtraction,
 } from '@salah/core';
-import type { TimeCandidate } from '@salah/core';
+import type { MosqueTimes, TimeCandidate } from '@salah/core';
 import { Screen } from '../../src/components/Screen';
 import { Card } from '../../src/components/Card';
 import { PrayerList } from '../../src/components/PrayerList';
 import { TrustBadge } from '../../src/components/TrustBadge';
 import { Message } from '../../src/components/StateView';
 import { getMosque } from '../../src/data/mosqueStore';
+import { getLocalTimesFor } from '../../src/data/localSubmissions';
 import { useTheme } from '../../src/theme';
 import { DEFAULT_MADHAB, DEFAULT_METHOD } from '../../src/config';
 import { formatDistance, formatHHmm } from '../../src/format';
 
 export default function MosqueDetailScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const mosque = id ? getMosque(id) : undefined;
 
-  // Local, in-memory crowd-confirm state seeded from the mosque's times — this
-  // exercises the real @salah/core trust ladder. A later iteration persists it.
-  const [candidate, setCandidate] = useState<TimeCandidate | null>(() =>
-    mosque?.times
-      ? candidateFromExtraction(`local:${mosque.id}`, mosque.id, {
-          times: mosque.times,
-        })
-      : null,
+  // Re-read local submissions whenever the screen regains focus (e.g. after
+  // returning from the submit form).
+  const [tick, setTick] = useState(0);
+  useFocusEffect(useCallback(() => setTick((t) => t + 1), []));
+
+  // Effective times = local crowdsourced submission (if any) over registry/OSM.
+  const effectiveTimes: MosqueTimes | undefined = useMemo(
+    () => (id ? getLocalTimesFor(id) : undefined) ?? mosque?.times,
+    [id, tick, mosque],
   );
+
+  // Crowd-confirm candidate, re-seeded when the effective times change. This
+  // drives the real @salah/core trust ladder.
+  const [candidate, setCandidate] = useState<TimeCandidate | null>(null);
+  useEffect(() => {
+    setCandidate(
+      effectiveTimes && id
+        ? candidateFromExtraction(`local:${id}`, id, { times: effectiveTimes })
+        : null,
+    );
+  }, [effectiveTimes, id]);
 
   const adhan = useMemo(
     () =>
@@ -58,7 +72,10 @@ export default function MosqueDetailScreen() {
   const vote = (v: 'confirm' | 'dispute') =>
     setCandidate((c) => (c ? applyConfirmation(c, { vote: v }) : c));
 
-  const times = candidate?.times ?? mosque.times;
+  const goEdit = () =>
+    router.push({ pathname: '/submit', params: { id: mosque.id, name: mosque.name } });
+
+  const times = candidate?.times ?? effectiveTimes;
   const jumuah = times?.jumuah ?? [];
 
   return (
@@ -93,9 +110,7 @@ export default function MosqueDetailScreen() {
 
       {adhan && (
         <Card>
-          <Text style={[styles.cardTitle, { color: theme.text }]}>
-            Prayer times
-          </Text>
+          <Text style={[styles.cardTitle, { color: theme.text }]}>Prayer times</Text>
           <PrayerList times={adhan.times} iqama={times?.iqama} />
         </Card>
       )}
@@ -124,38 +139,33 @@ export default function MosqueDetailScreen() {
           </Text>
           <Text style={{ color: theme.text3, fontSize: 13, marginBottom: 12 }}>
             Community confirmations help others trust these times.
-            {times.provenance?.sourceUrl
-              ? ` Source: ${times.provenance.method}.`
-              : ''}
           </Text>
           <View style={styles.voteRow}>
-            <VoteButton
-              label="✓ Correct"
-              color={theme.success}
-              onPress={() => vote('confirm')}
-            />
-            <VoteButton
-              label="✗ Wrong"
-              color={theme.danger}
-              onPress={() => vote('dispute')}
-            />
+            <VoteButton label="✓ Correct" color={theme.success} onPress={() => vote('confirm')} />
+            <VoteButton label="✗ Wrong" color={theme.danger} onPress={() => vote('dispute')} />
           </View>
           {candidate && (
             <Text style={{ color: theme.text3, fontSize: 12, marginTop: 10 }}>
-              {candidate.confirms} confirmed · {candidate.disputes} disputed ·
-              status: {candidate.status}
+              {candidate.confirms} confirmed · {candidate.disputes} disputed · status:{' '}
+              {candidate.status}
             </Text>
           )}
+          <TouchableOpacity onPress={goEdit} style={styles.editLink}>
+            <Text style={{ color: theme.primary, fontWeight: '700' }}>Edit these times ›</Text>
+          </TouchableOpacity>
         </Card>
       ) : (
         <Card>
           <Text style={[styles.cardTitle, { color: theme.text }]}>
             No congregation times yet
           </Text>
-          <Text style={{ color: theme.text3, fontSize: 14 }}>
-            This mosque’s iqama and Jumu‘ah times haven’t been submitted. A future
-            update lets you add them for the community.
+          <Text style={{ color: theme.text3, fontSize: 14, marginBottom: 14 }}>
+            This mosque’s iqama and Jumu‘ah times haven’t been submitted. Add them
+            to help the community.
           </Text>
+          <TouchableOpacity onPress={goEdit} style={[styles.addBtn, { backgroundColor: theme.primary }]}>
+            <Text style={styles.addText}>+ Add times</Text>
+          </TouchableOpacity>
         </Card>
       )}
     </Screen>
@@ -165,10 +175,7 @@ export default function MosqueDetailScreen() {
 function LinkButton({ label, onPress }: { label: string; onPress: () => void }) {
   const theme = useTheme();
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[styles.linkBtn, { borderColor: theme.primary }]}
-    >
+    <TouchableOpacity onPress={onPress} style={[styles.linkBtn, { borderColor: theme.primary }]}>
       <Text style={{ color: theme.primary, fontWeight: '700' }}>{label}</Text>
     </TouchableOpacity>
   );
@@ -220,4 +227,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
   },
+  editLink: { marginTop: 14, alignItems: 'center' },
+  addBtn: { borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
+  addText: { color: '#fff', fontWeight: '800', fontSize: 15 },
 });
