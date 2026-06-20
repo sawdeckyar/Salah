@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "description": "Salah — find nearby mosques and their prayer/adhan times by location, anywhere you travel.",
-  "workspaces": ["packages/*"],
+  "workspaces": ["packages/*", "apps/*"],
   "scripts": {
     "test": "npm run test --workspace @salah/core",
     "typecheck": "npm run typecheck --workspace @salah/core",
-    "build": "npm run build --workspace @salah/core"
+    "build": "npm run build --workspace @salah/core",
+    "mobile": "npm run start --workspace mobile"
   },
   "license": "MIT"
 }

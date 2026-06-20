@@ -50,6 +50,10 @@ Salah/
 │   ├── ARCHITECTURE.md     # system design, data flow, platform plan
 │   ├── DATA_MODEL.md       # registry schema + merge semantics
 │   └── DATA_INGESTION.md   # auto-extract from mosque pages + crowd-confirm trust ladder
+├── apps/
+│   └── mobile/             # Expo / React Native app (expo-router) built on @salah/core
+│       ├── app/            # routes: Today, Nearby (map), Travel, Qibla, mosque detail
+│       └── src/            # theme, hooks, components
 ├── packages/
 │   └── core/               # @salah/core — platform-agnostic engine (this is built & tested)
 │       ├── src/            # prayer times, qibla, geo, OSM, geocoding, registry, travel, trust, extract
@@ -59,14 +63,16 @@ Salah/
     └── mosque-times.seed.json     # illustrative seed data
 ```
 
-### Why a platform-agnostic core first?
+### Core + thin UI
 
-The UI platform (React Native vs. web PWA) is **deliberately not yet locked in**.
 Everything genuinely hard — prayer math, mosque discovery, geocoding, the registry
-merge, journey planning — lives in **`@salah/core`**, a pure TypeScript library with
-**no React, DOM, or Node-only dependencies** and an injectable `fetch`. It runs
-unchanged in React Native, a Next.js web app, or a backend, so the platform
-decision can be made later without rework.
+merge, journey planning, the ingestion/trust ladder — lives in **`@salah/core`**, a
+pure TypeScript library with **no React, DOM, or Node-only dependencies** and an
+injectable `fetch`. It runs unchanged in React Native, a web app, or a backend.
+
+The first UI is the **Expo / React Native** app in [`apps/mobile`](apps/mobile)
+(see its README to run it). Because the logic is in the core, the screens stay
+thin and a web client could be added later against the same API.
 
 ---
 
@@ -115,10 +121,11 @@ const plan = planJourneyPrayers(routeSamples, { method: 'NorthAmerica' });
 ## Develop
 
 ```bash
-npm install        # installs workspace deps (adhan, vitest, typescript)
-npm test           # run the @salah/core test suite (36 tests)
-npm run typecheck  # type-only check
+npm install        # installs all workspaces; builds @salah/core via its "prepare"
+npm test           # run the @salah/core test suite (52 tests)
+npm run typecheck  # type-only check (core)
 npm run build      # emit packages/core/dist
+npm run mobile     # start the Expo app (apps/mobile) — see its README
 ```
 
 ## Status
@@ -130,9 +137,12 @@ npm run build      # emit packages/core/dist
   table parser (`extract`). See [`docs/DATA_INGESTION.md`](docs/DATA_INGESTION.md).
 - ✅ **Data model** — registry JSON Schema + seed.
 - ✅ **Design docs** — product spec, architecture, data model, data ingestion.
-- ⏭️ **Next** — pick the UI platform (leaning React Native) and build the map +
-  prayer screens on top of `@salah/core`; add the edge fetcher + Supabase
-  persistence for the ingestion pipeline. See [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md).
+- ✅ **Mobile app (v0)** — Expo / React Native: Today, Nearby (map + list),
+  Travel (journey planner), Qibla, mosque detail with crowd-confirm. See
+  [`apps/mobile`](apps/mobile).
+- ⏭️ **Next** — Settings (calc method/madhab), submit-times form, adhan
+  notifications, per-coordinate timezones; edge fetcher + Supabase persistence
+  for the ingestion pipeline. See [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md).
 
 ## Attribution & licensing
 

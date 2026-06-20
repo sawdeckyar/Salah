@@ -95,11 +95,11 @@ Conflating these is the #1 UX risk. Always label which is which.
 | Phase | Deliverable | State |
 |-------|-------------|-------|
 | 0 | Design + **platform-agnostic core** (`@salah/core`) + data model | ✅ done |
-| 1 | Pick UI platform; build map + "near me" + mosque detail on the core | ⏭️ next |
-| 2 | Settings, qibla, city lookup, submit-times form | |
-| 3 | Adhan playback + notifications; offline cache | |
-| 4 | Journey planner UI | |
-| 5 | Supabase-backed registry + mosque-admin verification | |
+| 1 | Expo/RN app: Today, Nearby (map + list), mosque detail, Qibla, Travel | ✅ v0 (`apps/mobile`) |
+| 2 | Settings (method/madhab), city lookup polish, submit-times form | 🚧 partial (city lookup shipped) |
+| 3 | Adhan playback + notifications; offline cache; per-coordinate timezones | ⏭️ next |
+| 4 | Journey planner UI | ✅ v0 (Travel tab) |
+| 5 | Supabase-backed registry + edge ingestion + mosque-admin verification | |
 
 ### Positioning (post competitive review)
 
