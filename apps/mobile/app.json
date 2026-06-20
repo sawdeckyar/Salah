@@ -15,11 +15,13 @@
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.sawdeckyar.salah",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Salah uses your location to show nearby mosques and accurate prayer times for where you are."
       }
     },
     "android": {
+      "package": "com.sawdeckyar.salah",
       "adaptiveIcon": {
         "backgroundColor": "#0E7C66",
         "foregroundImage": "./assets/android-icon-foreground.png",
