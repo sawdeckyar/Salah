@@ -10,6 +10,8 @@ import { useTheme } from '../theme';
  *
  * Pass `style={{ flex: 1 }}` for a full-screen map, or `height` for a fixed box.
  */
+export type MapStyle = 'Streets' | 'Light' | 'Dark' | 'Classic' | 'Satellite';
+
 export function MosqueMap({
   center,
   mosques,
@@ -17,6 +19,7 @@ export function MosqueMap({
   height,
   style,
   interactive = true,
+  defaultStyle = 'Streets',
 }: {
   center: Coordinates;
   mosques: Mosque[];
@@ -24,9 +27,10 @@ export function MosqueMap({
   height?: number;
   style?: ViewStyle;
   interactive?: boolean;
+  defaultStyle?: MapStyle;
 }) {
   const theme = useTheme();
-  const html = buildHtml(center, mosques, theme.primary, interactive);
+  const html = buildHtml(center, mosques, theme.primary, interactive, defaultStyle);
 
   return (
     <View
@@ -53,6 +57,7 @@ function buildHtml(
   mosques: Mosque[],
   accent: string,
   interactive: boolean,
+  defaultStyle: MapStyle,
 ): string {
   const points = mosques
     .filter((m) => Number.isFinite(m.location.latitude))
@@ -96,9 +101,18 @@ function buildHtml(
   var center = ${c};
   var mosques = ${data};
   var map = L.map('map', { ${interactionOpts}, attributionControl: true }).setView(center, 13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '&copy; OpenStreetMap'
-  }).addTo(map);
+
+  // Key-free basemap styles. Switch live via the layers control (top-right).
+  var osmAttr = '&copy; OpenStreetMap &copy; CARTO';
+  var baseLayers = {
+    'Streets': L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', { maxZoom: 20, subdomains: 'abcd', attribution: osmAttr }),
+    'Light': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', { maxZoom: 20, subdomains: 'abcd', attribution: osmAttr }),
+    'Dark': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', { maxZoom: 20, subdomains: 'abcd', attribution: osmAttr }),
+    'Classic': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }),
+    'Satellite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Imagery &copy; Esri' })
+  };
+  baseLayers['${defaultStyle}'].addTo(map);
+  ${interactive ? "L.control.layers(baseLayers, null, { position: 'topright', collapsed: true }).addTo(map);" : ''}
 
   L.circleMarker(center, { radius: 7, color: '#ffffff', weight: 2, fillColor: '${accent}', fillOpacity: 1 })
     .addTo(map).bindPopup('You are here');
