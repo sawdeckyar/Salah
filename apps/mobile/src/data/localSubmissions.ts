@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Mosque, MosqueTimes } from '@salah/core';
+import { remoteEnabled, submitTimes, type MosqueMeta } from './remote';
 
 /**
  * On-device store of community time submissions. This is the crowdsourcing
@@ -42,6 +43,7 @@ export function getLocalTimesFor(id: string): MosqueTimes | undefined {
 export async function saveLocalTimes(
   id: string,
   times: MosqueTimes,
+  meta?: MosqueMeta,
 ): Promise<void> {
   cache = {
     ...cache,
@@ -54,6 +56,10 @@ export async function saveLocalTimes(
   };
   await AsyncStorage.setItem(KEY, JSON.stringify(cache));
   emit();
+  // Mirror to the shared backend when configured (optimistic local stays).
+  if (remoteEnabled()) {
+    submitTimes(id, meta ?? {}, times).catch(() => {});
+  }
 }
 
 export async function clearLocalTimes(id: string): Promise<void> {

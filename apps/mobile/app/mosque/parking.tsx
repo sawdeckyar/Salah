@@ -26,6 +26,7 @@ import {
   addParking,
   addParkingArea,
   getParkingFor,
+  refreshParking,
   removeParking,
   subscribeParking,
 } from '../../src/data/parkingStore';
@@ -61,6 +62,7 @@ export default function ParkingScreen() {
   useEffect(() => {
     if (!id) return;
     setReports(getParkingFor(id));
+    refreshParking(id); // pull from backend when configured
     return subscribeParking(() => setReports(getParkingFor(id)));
   }, [id]);
 

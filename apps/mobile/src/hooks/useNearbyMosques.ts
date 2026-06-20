@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { findNearbyMosques, type Coordinates, type Mosque } from '@salah/core';
+import {
+  findNearbyMosques,
+  type Coordinates,
+  type Mosque,
+  type RegistryEntry,
+} from '@salah/core';
 import { DEFAULT_RADIUS_M, httpDeps } from '../config';
 import { registrySeed } from '../data/registrySeed';
 import { rememberMosques } from '../data/mosqueStore';
 import { applyLocalTimes, subscribeLocal } from '../data/localSubmissions';
+import { fetchTimeRegistry, remoteEnabled } from '../data/remote';
 
 export type NearbyState =
   | { status: 'idle' }
@@ -22,11 +28,20 @@ export function useNearbyMosques(
 ): NearbyState & { refresh: () => void } {
   const [raw, setRaw] = useState<NearbyState>({ status: 'idle' });
   const [localVersion, setLocalVersion] = useState(0);
+  const [registry, setRegistry] = useState<RegistryEntry[]>(registrySeed);
 
   useEffect(
     () => subscribeLocal(() => setLocalVersion((v) => v + 1)),
     [],
   );
+
+  // Load the shared community registry from Supabase when configured.
+  useEffect(() => {
+    if (!remoteEnabled()) return;
+    fetchTimeRegistry()
+      .then((entries) => setRegistry([...registrySeed, ...entries]))
+      .catch(() => {});
+  }, [localVersion]);
 
   const load = useCallback(async () => {
     if (!origin) return;
@@ -34,7 +49,7 @@ export function useNearbyMosques(
     try {
       const mosques = await findNearbyMosques(
         origin,
-        { radiusMeters, registry: registrySeed },
+        { radiusMeters, registry },
         httpDeps,
       );
       setRaw({ status: 'ready', mosques });
@@ -45,7 +60,8 @@ export function useNearbyMosques(
           e instanceof Error ? e.message : 'Could not load nearby mosques.',
       });
     }
-  }, [origin?.latitude, origin?.longitude, radiusMeters]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [origin?.latitude, origin?.longitude, radiusMeters, registry]);
 
   useEffect(() => {
     load();

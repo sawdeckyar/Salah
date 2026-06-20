@@ -14,6 +14,7 @@ import { TrustBadge } from '../../src/components/TrustBadge';
 import { Message } from '../../src/components/StateView';
 import { getMosque } from '../../src/data/mosqueStore';
 import { getLocalTimesFor } from '../../src/data/localSubmissions';
+import { confirmTimes } from '../../src/data/remote';
 import { useTheme } from '../../src/theme';
 import { DEFAULT_MADHAB, DEFAULT_METHOD } from '../../src/config';
 import { formatDistance, formatHHmm } from '../../src/format';
@@ -69,8 +70,10 @@ export default function MosqueDetailScreen() {
     );
   }
 
-  const vote = (v: 'confirm' | 'dispute') =>
+  const vote = (v: 'confirm' | 'dispute') => {
     setCandidate((c) => (c ? applyConfirmation(c, { vote: v }) : c));
+    confirmTimes(mosque.id, v).catch(() => {}); // shared trust ladder (no-op offline)
+  };
 
   const goEdit = () =>
     router.push({ pathname: '/submit', params: { id: mosque.id, name: mosque.name } });

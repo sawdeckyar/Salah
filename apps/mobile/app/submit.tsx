@@ -91,7 +91,15 @@ export default function SubmitScreen() {
       setErrors(errs);
       return;
     }
-    if (id) await saveLocalTimes(id, times);
+    if (id) {
+      const m = getMosque(id);
+      await saveLocalTimes(id, times, {
+        name: m?.name,
+        location: m?.location,
+        city: m?.city,
+        country: m?.country,
+      });
+    }
     router.back();
   };
 
