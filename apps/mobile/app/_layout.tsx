@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
 import { loadLocalTimes } from '../src/data/localSubmissions';
 import { loadParking } from '../src/data/parkingStore';
+import { loadCommunity } from '../src/data/community';
 
 export default function RootLayout() {
   const scheme = useColorScheme();
@@ -12,6 +13,7 @@ export default function RootLayout() {
   useEffect(() => {
     loadLocalTimes();
     loadParking();
+    loadCommunity();
   }, []);
 
   return (
@@ -35,6 +37,10 @@ export default function RootLayout() {
         <Stack.Screen
           name="submit"
           options={{ presentation: 'modal', headerShown: true, title: 'Submit times' }}
+        />
+        <Stack.Screen
+          name="community-new"
+          options={{ presentation: 'modal', headerShown: true, title: 'Add to community' }}
         />
       </Stack>
     </SafeAreaProvider>

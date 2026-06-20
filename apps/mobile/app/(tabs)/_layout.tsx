@@ -37,7 +37,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="travel"
         options={{
-          title: 'Travel',
+          title: 'Explore',
           tabBarIcon: ({ color }) => <TabIcon emoji="🧭" color={color} />,
         }}
       />

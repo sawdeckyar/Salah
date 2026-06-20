@@ -283,6 +283,29 @@ export interface ParkingReport {
 }
 
 // ---------------------------------------------------------------------------
+// Community posts (Travel discovery hub: fun / events / gatherings)
+// ---------------------------------------------------------------------------
+
+export type CommunityCategory = 'fun' | 'event' | 'gathering';
+
+export interface CommunityPost {
+  id: string;
+  category: CommunityCategory;
+  title: string;
+  description?: string;
+  /** Optional venue location (enables distance + directions). */
+  location?: Coordinates;
+  placeName?: string;
+  city?: string;
+  /** Free-text time, e.g. "Sat 7:00 PM" (events/gatherings). */
+  whenText?: string;
+  url?: string;
+  contributor?: string;
+  createdAt?: string;
+  distanceMeters?: number;
+}
+
+// ---------------------------------------------------------------------------
 // Geocoding
 // ---------------------------------------------------------------------------
 
