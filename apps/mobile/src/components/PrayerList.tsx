@@ -6,6 +6,7 @@ import {
 } from '@salah/core';
 import { useTheme } from '../theme';
 import { formatHHmm, formatTime, prayerLabel } from '../format';
+import { formatTimeAt } from '../lib/tz';
 
 interface PrayerListProps {
   /** Astronomical (adhan) times for the day. */
@@ -14,11 +15,14 @@ interface PrayerListProps {
   iqama?: Partial<Record<IqamaPrayer, string>>;
   /** Prayer to emphasize (e.g. the next one). */
   highlight?: Prayer;
+  /** IANA timezone to render adhan times in (defaults to device time). */
+  tz?: string | null;
 }
 
-export function PrayerList({ times, iqama, highlight }: PrayerListProps) {
+export function PrayerList({ times, iqama, highlight, tz }: PrayerListProps) {
   const theme = useTheme();
   const showIqama = !!iqama;
+  const fmt = (d: Date) => (tz ? formatTimeAt(d, tz) : formatTime(d));
 
   return (
     <View>
@@ -63,7 +67,7 @@ export function PrayerList({ times, iqama, highlight }: PrayerListProps) {
                 { color: active ? theme.primary : theme.text2, width: 90 },
               ]}
             >
-              {formatTime(times[p])}
+              {fmt(times[p])}
             </Text>
             {showIqama ? (
               <Text style={[styles.time, { color: theme.text, width: 90, fontWeight: '700' }]}>

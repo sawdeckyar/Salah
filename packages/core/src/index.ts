@@ -16,6 +16,8 @@ export * from './osm.js';
 export * from './geocoding.js';
 export * from './registry.js';
 export * from './travel.js';
+export * from './musafir.js';
+export * from './places.js';
 export * from './trust.js';
 export * from './extract.js';
 export { tableExtractor } from './extractors/tableExtractor.js';

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Text } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import {
   calculatePrayerTimes,
   getPrayerStatus,
+  musafirInfo,
   reverseGeocode,
   type Coordinates,
 } from '@salah/core';
@@ -10,13 +11,19 @@ import { Screen } from '../../src/components/Screen';
 import { Card } from '../../src/components/Card';
 import { NextPrayerBanner } from '../../src/components/NextPrayerBanner';
 import { PrayerList } from '../../src/components/PrayerList';
+import { MusafirPanel } from '../../src/components/MusafirPanel';
 import { Loading, Message } from '../../src/components/StateView';
 import { useLocation } from '../../src/hooks/useLocation';
+import { useTheme } from '../../src/theme';
 import { DEFAULT_MADHAB, DEFAULT_METHOD, httpDeps } from '../../src/config';
 
+const DAY = 24 * 3.6e6;
+
 export default function TodayScreen() {
+  const theme = useTheme();
   const location = useLocation();
   const coords = location.status === 'ready' ? location.coords : null;
+  const [showMusafir, setShowMusafir] = useState(false);
 
   // Tick every 30s so the countdown and "next prayer" stay fresh.
   const [now, setNow] = useState(() => new Date());
@@ -34,8 +41,14 @@ export default function TodayScreen() {
       madhab: DEFAULT_MADHAB,
     });
     const status = getPrayerStatus(coords, now, { method: DEFAULT_METHOD });
-    return { result, status };
+    const nextFajr = calculatePrayerTimes(coords, new Date(now.getTime() + DAY), {
+      method: DEFAULT_METHOD,
+      madhab: DEFAULT_MADHAB,
+    }).times.fajr;
+    return { result, status, musafir: musafirInfo(result, nextFajr) };
   }, [coords?.latitude, coords?.longitude, now]);
+
+  const isFriday = now.getDay() === 5;
 
   const dateLabel = now.toLocaleDateString([], {
     weekday: 'long',
@@ -68,12 +81,42 @@ export default function TodayScreen() {
       {data && (
         <>
           <NextPrayerBanner status={data.status} />
+
+          {isFriday && (
+            <View style={{ backgroundColor: theme.primaryMuted, borderRadius: 12, padding: 12, marginBottom: 14 }}>
+              <Text style={{ color: theme.primary, fontWeight: '800' }}>
+                🕌 It’s Jumu‘ah — Dhuhr is the congregational Friday prayer. Check
+                your mosque’s khutbah time in Nearby.
+              </Text>
+            </View>
+          )}
+
           <Card>
             <PrayerList
               times={data.result.times}
               highlight={data.status.next === 'none' ? undefined : data.status.next}
             />
           </Card>
+
+          <Card>
+            <TouchableOpacity
+              onPress={() => setShowMusafir((s) => !s)}
+              style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+            >
+              <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800' }}>
+                🧳 Traveller (musāfir)
+              </Text>
+              <Text style={{ color: theme.primary, fontWeight: '700' }}>
+                {showMusafir ? 'Hide' : 'Show'}
+              </Text>
+            </TouchableOpacity>
+            {showMusafir && (
+              <View style={{ marginTop: 12 }}>
+                <MusafirPanel info={data.musafir} />
+              </View>
+            )}
+          </Card>
+
           <Text style={{ color: '#8A968F', fontSize: 12, textAlign: 'center' }}>
             Adhan times · {DEFAULT_METHOD} method · {DEFAULT_MADHAB} (Asr).
             Shown in your device’s local time.

@@ -15,6 +15,7 @@ import { Message } from '../../src/components/StateView';
 import { getMosque } from '../../src/data/mosqueStore';
 import { getLocalTimesFor } from '../../src/data/localSubmissions';
 import { confirmTimes } from '../../src/data/remote';
+import { openDirections } from '../../src/lib/maps';
 import { useTheme } from '../../src/theme';
 import { DEFAULT_MADHAB, DEFAULT_METHOD } from '../../src/config';
 import { formatDistance, formatHHmm } from '../../src/format';
@@ -94,22 +95,18 @@ export default function MosqueDetailScreen() {
         <TrustBadge times={times} />
       </View>
 
-      {(mosque.contact?.website || mosque.contact?.phone) && (
-        <View style={styles.links}>
-          {mosque.contact?.website && (
-            <LinkButton
-              label="Website"
-              onPress={() => Linking.openURL(mosque.contact!.website!)}
-            />
-          )}
-          {mosque.contact?.phone && (
-            <LinkButton
-              label="Call"
-              onPress={() => Linking.openURL(`tel:${mosque.contact!.phone}`)}
-            />
-          )}
-        </View>
-      )}
+      <View style={styles.links}>
+        <LinkButton
+          label="🧭 Directions"
+          onPress={() => openDirections(mosque.location, mosque.name)}
+        />
+        {mosque.contact?.website && (
+          <LinkButton label="Website" onPress={() => Linking.openURL(mosque.contact!.website!)} />
+        )}
+        {mosque.contact?.phone && (
+          <LinkButton label="Call" onPress={() => Linking.openURL(`tel:${mosque.contact!.phone}`)} />
+        )}
+      </View>
 
       <TouchableOpacity
         onPress={() =>
