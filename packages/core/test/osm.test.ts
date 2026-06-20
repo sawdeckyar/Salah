@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildOverpassQuery,
+  buildParkingQuery,
   elementToMosque,
   fetchNearbyMosques,
   parseOverpassResponse,
+  parseParkingResponse,
 } from '../src/osm.js';
 import type { FetchLike } from '../src/http.js';
 
@@ -78,6 +80,35 @@ describe('parseOverpassResponse', () => {
   it('returns [] for malformed payloads', () => {
     expect(parseOverpassResponse(null)).toEqual([]);
     expect(parseOverpassResponse({})).toEqual([]);
+  });
+});
+
+describe('parking', () => {
+  it('builds a parking query around a point', () => {
+    const q = buildParkingQuery(NYC, 500);
+    expect(q).toContain('"amenity"="parking"');
+    expect(q).toContain('around:500,40.7128,-74.006');
+  });
+
+  it('parses parking features with access/capacity', () => {
+    const parking = parseParkingResponse({
+      elements: [
+        {
+          type: 'way',
+          id: 9,
+          center: { lat: 40.71, lon: -74.0 },
+          tags: { name: 'Lot A', access: 'yes', fee: 'no', capacity: '40' },
+        },
+        { type: 'node', id: 10, tags: { amenity: 'parking' } }, // no coords → skipped
+      ],
+    });
+    expect(parking).toHaveLength(1);
+    expect(parking[0]).toMatchObject({
+      id: 'osm:way/9',
+      name: 'Lot A',
+      access: 'yes',
+      capacity: 40,
+    });
   });
 });
 

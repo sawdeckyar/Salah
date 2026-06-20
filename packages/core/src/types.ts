@@ -250,6 +250,36 @@ export interface RegistryEntry {
 }
 
 // ---------------------------------------------------------------------------
+// Parking
+// ---------------------------------------------------------------------------
+
+/** A parking facility from OpenStreetMap (amenity=parking). */
+export interface ParkingFeature {
+  id: string; // osm:<type>/<id>
+  location: Coordinates;
+  name?: string;
+  /** OSM access tag: yes | public | customers | private | permit | no. */
+  access?: string;
+  /** OSM fee tag: yes | no | ... */
+  fee?: string;
+  capacity?: number;
+  distanceMeters?: number;
+}
+
+/** Crowdsourced parking guidance near a mosque. */
+export type ParkingKind = 'legal' | 'no' | 'private';
+
+export interface ParkingReport {
+  id: string;
+  kind: ParkingKind;
+  location: Coordinates;
+  note?: string;
+  contributor?: string;
+  /** ISO-8601. */
+  createdAt?: string;
+}
+
+// ---------------------------------------------------------------------------
 // Geocoding
 // ---------------------------------------------------------------------------
 

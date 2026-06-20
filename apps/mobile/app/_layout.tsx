@@ -4,12 +4,14 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
 import { loadLocalTimes } from '../src/data/localSubmissions';
+import { loadParking } from '../src/data/parkingStore';
 
 export default function RootLayout() {
   const scheme = useColorScheme();
 
   useEffect(() => {
     loadLocalTimes();
+    loadParking();
   }, []);
 
   return (
@@ -25,6 +27,10 @@ export default function RootLayout() {
         <Stack.Screen
           name="mosque/[id]"
           options={{ headerShown: true, title: 'Mosque', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen
+          name="mosque/parking"
+          options={{ headerShown: true, title: 'Parking', headerBackTitle: 'Back' }}
         />
         <Stack.Screen
           name="submit"

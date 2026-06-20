@@ -108,6 +108,16 @@ export default function MosqueDetailScreen() {
         </View>
       )}
 
+      <TouchableOpacity
+        onPress={() =>
+          router.push({ pathname: '/mosque/parking', params: { id: mosque.id } })
+        }
+        style={[styles.parkingBtn, { backgroundColor: theme.surface, borderColor: theme.border }]}
+      >
+        <Text style={[styles.parkingText, { color: theme.text }]}>🅿️  Parking nearby</Text>
+        <Text style={{ color: theme.text3 }}>›</Text>
+      </TouchableOpacity>
+
       {adhan && (
         <Card>
           <Text style={[styles.cardTitle, { color: theme.text }]}>Prayer times</Text>
@@ -227,6 +237,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
   },
+  parkingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 14,
+  },
+  parkingText: { fontSize: 16, fontWeight: '700' },
   editLink: { marginTop: 14, alignItems: 'center' },
   addBtn: { borderRadius: 10, paddingVertical: 13, alignItems: 'center' },
   addText: { color: '#fff', fontWeight: '800', fontSize: 15 },
