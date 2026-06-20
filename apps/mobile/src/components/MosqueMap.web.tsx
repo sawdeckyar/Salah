@@ -7,7 +7,7 @@ import { useTheme } from '../theme';
  * not support web, so on web we skip it and show a short note — the mosque list
  * still works. Metro picks this file over `MosqueMap.tsx` on web.
  */
-export type MapStyle = 'Streets' | 'Light' | 'Dark' | 'Classic' | 'Satellite';
+export type MapStyle = 'Streets' | 'Light' | 'Bright' | 'Satellite';
 
 export function MosqueMap(_props: {
   center: Coordinates;
