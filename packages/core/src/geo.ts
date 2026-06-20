@@ -69,3 +69,15 @@ export function sortByDistance<T extends { location: Coordinates }>(
     }))
     .sort((a, b) => a.distanceMeters - b.distanceMeters);
 }
+
+/** Average of a list of points (simple centroid). Throws if empty. */
+export function centroid(points: Coordinates[]): Coordinates {
+  if (points.length === 0) throw new Error('centroid requires at least one point');
+  let lat = 0;
+  let lon = 0;
+  for (const p of points) {
+    lat += p.latitude;
+    lon += p.longitude;
+  }
+  return { latitude: lat / points.length, longitude: lon / points.length };
+}

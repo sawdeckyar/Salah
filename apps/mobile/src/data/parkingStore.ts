@@ -1,5 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Coordinates, ParkingKind, ParkingReport } from '@salah/core';
+import {
+  centroid,
+  type Coordinates,
+  type ParkingKind,
+  type ParkingReport,
+} from '@salah/core';
 
 /**
  * On-device store of crowdsourced parking reports, keyed by mosque id. Same
@@ -45,6 +50,26 @@ export async function addParking(
     id: `p_${Date.now()}_${Math.round(Math.random() * 1e4)}`,
     kind,
     location,
+    note: note?.trim() || undefined,
+    contributor: 'you',
+    createdAt: new Date().toISOString(),
+  };
+  cache = { ...cache, [mosqueId]: [...(cache[mosqueId] ?? []), report] };
+  await AsyncStorage.setItem(KEY, JSON.stringify(cache));
+  emit();
+}
+
+export async function addParkingArea(
+  mosqueId: string,
+  kind: ParkingKind,
+  polygon: Coordinates[],
+  note?: string,
+): Promise<void> {
+  const report: ParkingReport = {
+    id: `p_${Date.now()}_${Math.round(Math.random() * 1e4)}`,
+    kind,
+    location: centroid(polygon),
+    polygon,
     note: note?.trim() || undefined,
     contributor: 'you',
     createdAt: new Date().toISOString(),

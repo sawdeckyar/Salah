@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   StyleSheet,
@@ -16,11 +16,15 @@ import {
   type ParkingKind,
   type ParkingReport,
 } from '@salah/core';
-import { ParkingMap } from '../../src/components/ParkingMap';
+import {
+  ParkingMap,
+  type ParkingMapHandle,
+} from '../../src/components/ParkingMap';
 import { Message } from '../../src/components/StateView';
 import { getMosque } from '../../src/data/mosqueStore';
 import {
   addParking,
+  addParkingArea,
   getParkingFor,
   removeParking,
   subscribeParking,
@@ -28,10 +32,10 @@ import {
 import { httpDeps } from '../../src/config';
 import { useTheme } from '../../src/theme';
 
-const KINDS: { kind: ParkingKind; label: string; color: (t: any) => string }[] = [
-  { kind: 'legal', label: 'Legal', color: () => '#16a34a' },
-  { kind: 'no', label: 'No parking', color: () => '#dc2626' },
-  { kind: 'private', label: 'Private', color: () => '#d97706' },
+const KINDS: { kind: ParkingKind; label: string; color: string }[] = [
+  { kind: 'legal', label: 'Legal', color: '#16a34a' },
+  { kind: 'no', label: 'No parking', color: '#dc2626' },
+  { kind: 'private', label: 'Private', color: '#d97706' },
 ];
 
 export default function ParkingScreen() {
@@ -39,22 +43,27 @@ export default function ParkingScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const mosque = id ? getMosque(id) : undefined;
+  const mapRef = useRef<ParkingMapHandle>(null);
 
   const [osm, setOsm] = useState<ParkingFeature[]>([]);
-  const [addKind, setAddKind] = useState<ParkingKind | null>(null);
+  const [kind, setKind] = useState<ParkingKind | null>(null);
+  const [tool, setTool] = useState<'point' | 'area'>('point');
   const [note, setNote] = useState('');
   const [reports, setReports] = useState<ParkingReport[]>(
     id ? getParkingFor(id) : [],
   );
 
-  // Keep reports in sync with the local store.
+  const mode = kind ? tool : 'browse';
+  useEffect(() => {
+    mapRef.current?.setMode(mode);
+  }, [mode]);
+
   useEffect(() => {
     if (!id) return;
     setReports(getParkingFor(id));
     return subscribeParking(() => setReports(getParkingFor(id)));
   }, [id]);
 
-  // Fetch OSM parking around the mosque.
   useEffect(() => {
     if (!mosque) return;
     let active = true;
@@ -68,23 +77,28 @@ export default function ParkingScreen() {
 
   const onTap = useCallback(
     (coords: Coordinates) => {
-      if (!id || !addKind) return;
-      addParking(id, addKind, coords, note);
+      if (!id || !kind || tool !== 'point') return;
+      addParking(id, kind, coords, note);
       setNote('');
     },
-    [id, addKind, note],
+    [id, kind, tool, note],
+  );
+
+  const onAddPolygon = useCallback(
+    (ring: Coordinates[]) => {
+      if (!id || !kind) return;
+      addParkingArea(id, kind, ring, note);
+      setNote('');
+    },
+    [id, kind, note],
   );
 
   const onSelectReport = useCallback(
     (reportId: string) => {
       if (!id) return;
-      Alert.alert('Remove report?', 'Delete this parking marker?', [
+      Alert.alert('Remove report?', 'Delete this parking marker/area?', [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => removeParking(id, reportId),
-        },
+        { text: 'Remove', style: 'destructive', onPress: () => removeParking(id, reportId) },
       ]);
     },
     [id],
@@ -94,43 +108,40 @@ export default function ParkingScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: theme.bg }}>
         <Stack.Screen options={{ title: 'Parking' }} />
-        <Message
-          title="Mosque not found"
-          detail="Open this from a mosque’s detail screen."
-        />
+        <Message title="Mosque not found" detail="Open this from a mosque’s detail screen." />
       </View>
     );
   }
+
+  const activeColor = KINDS.find((k) => k.kind === kind)?.color ?? theme.primary;
 
   return (
     <View style={styles.fill}>
       <Stack.Screen options={{ title: 'Parking', headerShown: true }} />
 
       <ParkingMap
+        ref={mapRef}
         center={mosque.location}
         osm={osm}
         reports={reports}
         onTap={onTap}
+        onAddPolygon={onAddPolygon}
         onSelectReport={onSelectReport}
         style={{ flex: 1 }}
       />
 
-      {/* Add-mode controls */}
-      <View style={[styles.addBar, { top: insets.top + 8 }]} pointerEvents="box-none">
+      {/* Controls */}
+      <View style={[styles.bar, { top: insets.top + 8 }]} pointerEvents="box-none">
         <View style={[styles.chips, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           {KINDS.map((k) => {
-            const active = addKind === k.kind;
+            const active = kind === k.kind;
             return (
               <TouchableOpacity
                 key={k.kind}
-                onPress={() => setAddKind(active ? null : k.kind)}
-                style={[
-                  styles.chip,
-                  { borderColor: k.color(theme) },
-                  active && { backgroundColor: k.color(theme) },
-                ]}
+                onPress={() => setKind(active ? null : k.kind)}
+                style={[styles.chip, { borderColor: k.color }, active && { backgroundColor: k.color }]}
               >
-                <Text style={{ color: active ? '#fff' : k.color(theme), fontWeight: '800', fontSize: 13 }}>
+                <Text style={{ color: active ? '#fff' : k.color, fontWeight: '800', fontSize: 13 }}>
                   {k.label}
                 </Text>
               </TouchableOpacity>
@@ -138,35 +149,66 @@ export default function ParkingScreen() {
           })}
         </View>
 
-        {addKind && (
-          <View style={[styles.noteRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        {kind && (
+          <View style={[styles.panel, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={styles.toolRow}>
+              <ToolBtn label="📍 Drop pin" active={tool === 'point'} color={activeColor} onPress={() => setTool('point')} />
+              <ToolBtn label="✏️ Draw area" active={tool === 'area'} color={activeColor} onPress={() => setTool('area')} />
+            </View>
             <TextInput
               value={note}
               onChangeText={setNote}
-              placeholder="Optional note (e.g. street side, after 6pm)…"
+              placeholder="Optional note (e.g. after 6pm, street side)…"
               placeholderTextColor={theme.text3}
-              style={[styles.noteInput, { color: theme.text }]}
+              style={[styles.note, { color: theme.text, borderColor: theme.border }]}
             />
             <Text style={[styles.hint, { color: theme.text3 }]}>
-              Tap the map to drop a “{KINDS.find((x) => x.kind === addKind)!.label}” pin.
+              {tool === 'point'
+                ? 'Tap the map to drop a pin.'
+                : 'Tap to add corners, then Finish (3+ points).'}
             </Text>
+            {tool === 'area' && (
+              <View style={styles.drawRow}>
+                <SmallBtn label="Undo" onPress={() => mapRef.current?.undo()} color={theme.text2} border={theme.border} />
+                <SmallBtn label="Cancel" onPress={() => mapRef.current?.cancel()} color={theme.danger} border={theme.border} />
+                <SmallBtn label="Finish" onPress={() => mapRef.current?.finish()} color="#fff" bg={activeColor} border={activeColor} />
+              </View>
+            )}
           </View>
         )}
       </View>
 
       {/* Legend */}
-      <View
-        style={[
-          styles.legend,
-          { backgroundColor: theme.surface, borderColor: theme.border, bottom: insets.bottom + 12 },
-        ]}
-      >
-        <Legend color="#2563eb" label={`${osm.length} OSM lots`} />
+      <View style={[styles.legend, { backgroundColor: theme.surface, borderColor: theme.border, bottom: insets.bottom + 12 }]}>
+        <Legend color="#2563eb" label={`${osm.length} lots`} />
         <Legend color="#16a34a" label="Legal" />
         <Legend color="#dc2626" label="No" />
         <Legend color="#d97706" label="Private" />
       </View>
     </View>
+  );
+}
+
+function ToolBtn({ label, active, color, onPress }: { label: string; active: boolean; color: string; onPress: () => void }) {
+  const theme = useTheme();
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.toolBtn, { borderColor: active ? color : theme.border }, active && { backgroundColor: color + '22' }]}
+    >
+      <Text style={{ color: active ? color : theme.text2, fontWeight: '700', fontSize: 13 }}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function SmallBtn({ label, onPress, color, bg, border }: { label: string; onPress: () => void; color: string; bg?: string; border: string }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.smallBtn, { borderColor: border, backgroundColor: bg ?? 'transparent' }]}
+    >
+      <Text style={{ color, fontWeight: '800', fontSize: 13 }}>{label}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -182,7 +224,7 @@ function Legend({ color, label }: { color: string; label: string }) {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  addBar: { position: 'absolute', left: 12, right: 12, gap: 8 },
+  bar: { position: 'absolute', left: 12, right: 12, gap: 8 },
   chips: {
     flexDirection: 'row',
     gap: 8,
@@ -191,20 +233,14 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     alignSelf: 'center',
   },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 9,
-    borderWidth: 1.5,
-  },
-  noteRow: {
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 10,
-    gap: 4,
-  },
-  noteInput: { fontSize: 14, paddingVertical: 4 },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 9, borderWidth: 1.5 },
+  panel: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: 10, gap: 8 },
+  toolRow: { flexDirection: 'row', gap: 8 },
+  toolBtn: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 9, borderWidth: 1.5 },
+  note: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 14 },
   hint: { fontSize: 12 },
+  drawRow: { flexDirection: 'row', gap: 8, justifyContent: 'flex-end' },
+  smallBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9, borderWidth: 1.5 },
   legend: {
     position: 'absolute',
     left: 12,

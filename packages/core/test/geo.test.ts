@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   boundingBox,
+  centroid,
   haversineMeters,
   sortByDistance,
 } from '../src/geo.js';
@@ -47,6 +48,21 @@ describe('sortByDistance', () => {
     const sorted = sortByDistance(NYC, items);
     expect(sorted[0].distanceMeters).toBeLessThan(sorted[1].distanceMeters);
     expect(sorted[0].location).toEqual(items[1].location);
+  });
+});
+
+describe('centroid', () => {
+  it('averages the points', () => {
+    expect(
+      centroid([
+        { latitude: 0, longitude: 0 },
+        { latitude: 2, longitude: 4 },
+      ]),
+    ).toEqual({ latitude: 1, longitude: 2 });
+  });
+
+  it('throws on empty input', () => {
+    expect(() => centroid([])).toThrow();
   });
 });
 

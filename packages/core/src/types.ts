@@ -272,7 +272,10 @@ export type ParkingKind = 'legal' | 'no' | 'private';
 export interface ParkingReport {
   id: string;
   kind: ParkingKind;
+  /** Centroid (for labels/fallback marker). */
   location: Coordinates;
+  /** Optional drawn area outline (ring of points). When set, render as a shape. */
+  polygon?: Coordinates[];
   note?: string;
   contributor?: string;
   /** ISO-8601. */
