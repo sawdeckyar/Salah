@@ -48,11 +48,12 @@ Salah/
 ├── docs/
 │   ├── PRODUCT_SPEC.md     # problem, users, features, MVP scope, roadmap
 │   ├── ARCHITECTURE.md     # system design, data flow, platform plan
-│   └── DATA_MODEL.md       # registry schema + merge semantics
+│   ├── DATA_MODEL.md       # registry schema + merge semantics
+│   └── DATA_INGESTION.md   # auto-extract from mosque pages + crowd-confirm trust ladder
 ├── packages/
 │   └── core/               # @salah/core — platform-agnostic engine (this is built & tested)
-│       ├── src/            # prayer times, qibla, geo, OSM, geocoding, registry, travel
-│       └── test/           # 36 unit tests (vitest)
+│       ├── src/            # prayer times, qibla, geo, OSM, geocoding, registry, travel, trust, extract
+│       └── test/           # 52 unit tests (vitest)
 └── data/
     ├── mosque-times.schema.json   # JSON Schema for the registry
     └── mosque-times.seed.json     # illustrative seed data
@@ -124,10 +125,14 @@ npm run build      # emit packages/core/dist
 
 - ✅ **Core engine** — built, typed, and tested (prayer times, qibla, geo, OSM
   discovery, geocoding, registry merge, journey planner).
+- ✅ **Data ingestion engine** — provenance + crowd-confirmation trust ladder
+  (`trust`) and a pluggable mosque-page extractor framework with a working
+  table parser (`extract`). See [`docs/DATA_INGESTION.md`](docs/DATA_INGESTION.md).
 - ✅ **Data model** — registry JSON Schema + seed.
-- ✅ **Design docs** — product spec, architecture, data model.
+- ✅ **Design docs** — product spec, architecture, data model, data ingestion.
 - ⏭️ **Next** — pick the UI platform (leaning React Native) and build the map +
-  prayer screens on top of `@salah/core`. See [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md).
+  prayer screens on top of `@salah/core`; add the edge fetcher + Supabase
+  persistence for the ingestion pipeline. See [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md).
 
 ## Attribution & licensing
 

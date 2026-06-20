@@ -16,6 +16,9 @@ export * from './osm.js';
 export * from './geocoding.js';
 export * from './registry.js';
 export * from './travel.js';
+export * from './trust.js';
+export * from './extract.js';
+export { tableExtractor } from './extractors/tableExtractor.js';
 
 import { resolveFetch, type HttpDeps } from './http.js';
 import {

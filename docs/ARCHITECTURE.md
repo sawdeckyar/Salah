@@ -50,6 +50,8 @@ Native) without betting the codebase on it.
 | `geocoding.ts` | Nominatim forward/reverse geocoding. | yes |
 | `registry.ts` | Index + merge community times; validate submissions. | – |
 | `travel.ts` | Journey prayer planning. | no |
+| `trust.ts` | Crowd-confirmation trust ladder + staleness. | – |
+| `extract.ts` + `extractors/` | Mosque-page extraction framework + `tableExtractor`. | no (host fetches) |
 | `index.ts` | `findNearbyMosques()` orchestrator + re-exports. | yes |
 
 ## 3. Key data flows
@@ -118,6 +120,12 @@ mosque_time_submission(
 )
 ```
 with RLS for multi-contributor safety and a moderation/verification workflow.
+
+How the registry is *populated* — automatic extraction from mosque web pages
+plus a crowd-confirmation trust ladder — is specified in
+[`DATA_INGESTION.md`](DATA_INGESTION.md). The pure parts (extractor framework,
+`tableExtractor`, trust reducers, staleness) live in the core; fetching,
+LLM/vision extraction, and persistence live at the edge.
 
 ## 7. Platform decision (deferred, leaning React Native)
 

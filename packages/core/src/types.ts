@@ -127,7 +127,86 @@ export interface MosqueTimes {
   contributor?: string;
   /** Whether a maintainer or the mosque has confirmed the times. */
   verified?: boolean;
+  /** Where these times came from and how (see DATA_INGESTION.md). */
+  provenance?: TimeProvenance;
+  /** Net community confirmations (positive minus disputes). */
+  confirmations?: number;
+  /** ISO-8601 timestamp of the most recent positive confirmation. */
+  lastConfirmedAt?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Provenance, candidates, and the trust ladder (data ingestion)
+// ---------------------------------------------------------------------------
+
+/**
+ * How a set of times was obtained, in rough order of trustworthiness:
+ *  - `widget`       structured data from a detected mosque-platform embed
+ *  - `html`         parsed from an HTML table / structured markup
+ *  - `pdf`          parsed from a PDF timetable
+ *  - `llm`          extracted from free-text / images by a language/vision model
+ *  - `crowd`        submitted directly by a community user
+ *  - `mosque-admin` entered/verified by the mosque itself (highest trust)
+ */
+export type ExtractionMethod =
+  | 'widget'
+  | 'html'
+  | 'pdf'
+  | 'llm'
+  | 'crowd'
+  | 'mosque-admin';
+
+/** Audit trail for a set of extracted/submitted times. */
+export interface TimeProvenance {
+  method: ExtractionMethod;
+  /** Origin: a page URL, or `user:<id>` for crowd submissions. */
+  sourceUrl?: string;
+  /** Extractor/model identifier, e.g. `table-parser@1`, `claude-vision`. */
+  extractor?: string;
+  /** Extractor confidence in [0, 1]. */
+  confidence?: number;
+  /** ISO-8601 timestamp the source was fetched/observed. */
+  observedAt?: string;
+}
+
+/** Position on the trust ladder for a candidate set of times. */
+export type CandidateStatus =
+  | 'candidate'
+  | 'crowd-confirmed'
+  | 'mosque-verified'
+  | 'rejected';
+
+/** A single user vote on a candidate's correctness. */
+export interface ConfirmationEvent {
+  vote: 'confirm' | 'dispute';
+  /** Opaque user id, for dedupe/weighting. Optional. */
+  userId?: string;
+  /** ISO-8601 timestamp of the vote. Defaults to now when omitted. */
+  at?: string;
+}
+
+/**
+ * A proposed set of times for a mosque, moving up the trust ladder as the crowd
+ * confirms it. Auto-extracted times enter as `candidate`; the mosque registry
+ * surfaces the best candidate per mosque.
+ */
+export interface TimeCandidate {
+  id: string;
+  /** Mosque this candidate is for, e.g. `osm:node/123` or `reg:<id>`. */
+  mosqueId: string;
+  /** The proposed times (carrying their own provenance). */
+  times: MosqueTimes;
+  status: CandidateStatus;
+  /** ISO-8601 creation timestamp. */
+  createdAt: string;
+  confirms: number;
+  disputes: number;
+  /** ISO-8601 timestamp of the most recent positive confirmation. */
+  lastConfirmedAt?: string;
+}
+
+/** Human-facing trust level derived from a set of times. */
+export type TrustLevel = 'unverified' | 'crowd-confirmed' | 'mosque-verified';
 
 /** A mosque, from OSM, the registry, or a merge of both. */
 export interface Mosque {

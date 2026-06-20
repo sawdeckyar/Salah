@@ -49,9 +49,17 @@ astronomy, and apply at the mosque's local time.
   updatedAt?: string;          // ISO-8601
   contributor?: string;
   verified?: boolean;
+  provenance?: TimeProvenance; // where these times came from + how
+  confirmations?: number;      // net community confirmations
+  lastConfirmedAt?: string;    // ISO-8601 of last positive confirmation
 }
 ```
 (Sunrise has no iqama — it is not a congregational prayer.)
+
+`provenance`, `confirmations`, and `lastConfirmedAt` support the hybrid
+extraction + crowd-confirmation pipeline — see
+[`DATA_INGESTION.md`](DATA_INGESTION.md) for `TimeProvenance`, `TimeCandidate`,
+and the trust ladder.
 
 ### `JumuahService`
 ```ts

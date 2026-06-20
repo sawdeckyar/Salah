@@ -60,6 +60,10 @@ Conflating these is the #1 UX risk. Always label which is which.
 - **Journey planner** → origin → destination, see which prayers fall during the
   trip, where, and suggested mosque stops (`planJourneyPrayers`).
 - **Offline cache** → last-known mosques + times available without signal.
+- **Auto-extracted times + crowd confirmation** → seed iqama/Jumu‘ah times from
+  mosque web pages, shown as candidates with a ✓/✗/✎ prompt to nearby users; a
+  trust ladder promotes confirmed times and re-checks stale ones
+  ([`DATA_INGESTION.md`](DATA_INGESTION.md)).
 - **Verification** → mosque-admin claim + "verified" badge on times.
 
 ### 5.3 Later
@@ -96,6 +100,18 @@ Conflating these is the #1 UX risk. Always label which is which.
 | 3 | Adhan playback + notifications; offline cache | |
 | 4 | Journey planner UI | |
 | 5 | Supabase-backed registry + mosque-admin verification | |
+
+### Positioning (post competitive review)
+
+Nearby-iqama apps exist and are mature (MAWAQIT leads, with mosque-owned data via
+free in-mosque displays). Salah's two wedges:
+
+1. **Traveller / journey niche** — under-served by mosque-centric incumbents;
+   "which prayers fall during my drive, where, and which mosque do I stop at"
+   (`travel.planJourneyPrayers`).
+2. **Hybrid data acquisition** — auto-extract iqama times from mosque pages, then
+   crowd-confirm, instead of pure crowdsourcing (low coverage) or years of
+   mosque onboarding. See [`DATA_INGESTION.md`](DATA_INGESTION.md).
 
 **Platform decision is deferred** (leaning React Native / mobile). Because all
 non-UI logic is in `@salah/core`, phase 1 can start on either React Native or a
