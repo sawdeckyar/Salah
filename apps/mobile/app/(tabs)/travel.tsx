@@ -25,8 +25,14 @@ import { Loading, Message } from '../../src/components/StateView';
 import { useLocation } from '../../src/hooks/useLocation';
 import { useTheme } from '../../src/theme';
 import { httpDeps } from '../../src/config';
+import { formatDistance } from '../../src/format';
 import { openDirections } from '../../src/lib/maps';
-import { getCommunity, subscribeCommunity } from '../../src/data/community';
+import {
+  getCommunity,
+  isInterested,
+  subscribeCommunity,
+  toggleInterest,
+} from '../../src/data/community';
 
 type Tab = 'food' | CommunityCategory;
 const TABS: { key: Tab; label: string; emoji: string }[] = [
@@ -34,6 +40,7 @@ const TABS: { key: Tab; label: string; emoji: string }[] = [
   { key: 'fun', label: 'Fun', emoji: '🎡' },
   { key: 'event', label: 'Events', emoji: '📅' },
   { key: 'gathering', label: 'Gatherings', emoji: '🤝' },
+  { key: 'meetup', label: 'Meetups', emoji: '👥' },
 ];
 const KIND_EMOJI: Record<string, string> = {
   restaurant: '🍽️',
@@ -42,11 +49,6 @@ const KIND_EMOJI: Record<string, string> = {
   shop: '🛒',
   other: '📍',
 };
-
-function fmtDist(m?: number): string {
-  if (m == null) return '';
-  return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
-}
 
 export default function TravelScreen() {
   const theme = useTheme();
@@ -191,7 +193,7 @@ function FoodList({ area, onOpen }: { area: Coordinates; onOpen: (p: Place) => v
               {[p.cuisine, p.halal === 'only' ? 'fully halal' : 'halal options'].filter(Boolean).join(' · ')}
             </Text>
           </View>
-          <Text style={{ color: theme.primary, fontWeight: '700' }}>{fmtDist(p.distanceMeters)}</Text>
+          <Text style={{ color: theme.primary, fontWeight: '700' }}>{formatDistance(p.distanceMeters)}</Text>
         </TouchableOpacity>
       ))}
     </Card>
@@ -255,35 +257,53 @@ function CommunityList({
     <>
       <View style={styles.addRow}>{addBtn}</View>
       <Card>
-        {posts.map((p) => (
-          <TouchableOpacity
-            key={p.id}
-            onPress={() => {
-              if (p.url) Linking.openURL(p.url).catch(() => {});
-              else if (p.location) openDirections(p.location, p.title);
-            }}
-            style={[styles.row, { borderTopColor: theme.border }]}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.name, { color: theme.text }]}>{p.title}</Text>
-              {p.whenText ? (
-                <Text style={{ color: theme.primary, fontSize: 13, fontWeight: '600' }}>🕒 {p.whenText}</Text>
-              ) : null}
-              {p.placeName || p.city ? (
-                <Text style={{ color: theme.text3, fontSize: 12 }} numberOfLines={1}>
-                  {[p.placeName, p.city].filter(Boolean).join(' · ')}
-                  {p.distanceMeters != null ? ` · ${fmtDist(p.distanceMeters)}` : ''}
+        {posts.map((p) => {
+          const mine = isInterested(p.id);
+          return (
+            <View key={p.id} style={[styles.postRow, { borderTopColor: theme.border }]}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (p.url) Linking.openURL(p.url).catch(() => {});
+                  else if (p.location) openDirections(p.location, p.title);
+                }}
+                activeOpacity={p.url || p.location ? 0.6 : 1}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={[styles.name, { color: theme.text, flex: 1 }]}>{p.title}</Text>
+                  {(p.url || p.location) && <Text style={{ color: theme.text3 }}>›</Text>}
+                </View>
+                {p.whenText ? (
+                  <Text style={{ color: theme.primary, fontSize: 13, fontWeight: '600' }}>🕒 {p.whenText}</Text>
+                ) : null}
+                {p.placeName || p.city ? (
+                  <Text style={{ color: theme.text3, fontSize: 12 }} numberOfLines={1}>
+                    {[p.placeName, p.city].filter(Boolean).join(' · ')}
+                    {p.distanceMeters != null ? ` · ${formatDistance(p.distanceMeters)}` : ''}
+                  </Text>
+                ) : null}
+                {p.description ? (
+                  <Text style={{ color: theme.text2, fontSize: 13, marginTop: 4 }} numberOfLines={3}>
+                    {p.description}
+                  </Text>
+                ) : null}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => toggleInterest(p)}
+                style={[
+                  styles.interestBtn,
+                  { borderColor: theme.primary },
+                  mine && { backgroundColor: theme.primary },
+                ]}
+              >
+                <Text style={{ color: mine ? '#fff' : theme.primary, fontWeight: '800', fontSize: 13 }}>
+                  {mine ? '✓ Interested' : '+ Interested'}
+                  {p.interested ? ` · ${p.interested}` : ''}
                 </Text>
-              ) : null}
-              {p.description ? (
-                <Text style={{ color: theme.text2, fontSize: 13, marginTop: 4 }} numberOfLines={2}>
-                  {p.description}
-                </Text>
-              ) : null}
+              </TouchableOpacity>
             </View>
-            {(p.url || p.location) && <Text style={{ color: theme.text3 }}>›</Text>}
-          </TouchableOpacity>
-        ))}
+          );
+        })}
       </Card>
     </>
   );
@@ -307,6 +327,14 @@ const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 14 },
   tab: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderTopWidth: StyleSheet.hairlineWidth },
+  postRow: { paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth, gap: 8 },
+  interestBtn: {
+    alignSelf: 'flex-start',
+    borderWidth: 1.5,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
   emoji: { fontSize: 20 },
   name: { fontSize: 15, fontWeight: '700' },
   addRow: { alignItems: 'flex-end', marginBottom: 8 },

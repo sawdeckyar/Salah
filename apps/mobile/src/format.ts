@@ -16,11 +16,12 @@ export function formatHHmm(hhmm: string): string {
   return `${h12}:${String(m).padStart(2, '0')} ${mer}`;
 }
 
-/** Human distance: metres under 1 km, otherwise one-decimal km. */
+/** Human distance in imperial units: feet under ~0.1 mi, otherwise miles. */
 export function formatDistance(meters?: number): string {
   if (meters == null) return '';
-  if (meters < 1000) return `${Math.round(meters)} m`;
-  return `${(meters / 1000).toFixed(1)} km`;
+  const miles = meters / 1609.344;
+  if (miles < 0.1) return `${Math.round(meters * 3.28084)} ft`;
+  return `${miles.toFixed(1)} mi`;
 }
 
 /** "2h 13m" / "13m" countdown from a minute count. */

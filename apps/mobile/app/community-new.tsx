@@ -17,6 +17,7 @@ const LABELS: Record<CommunityCategory, string> = {
   fun: 'Halal fun spot',
   event: 'Event',
   gathering: 'Gathering',
+  meetup: 'Meetup',
 };
 
 export default function CommunityNewScreen() {

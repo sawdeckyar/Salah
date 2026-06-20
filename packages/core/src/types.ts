@@ -286,7 +286,7 @@ export interface ParkingReport {
 // Community posts (Travel discovery hub: fun / events / gatherings)
 // ---------------------------------------------------------------------------
 
-export type CommunityCategory = 'fun' | 'event' | 'gathering';
+export type CommunityCategory = 'fun' | 'event' | 'gathering' | 'meetup';
 
 export interface CommunityPost {
   id: string;
@@ -297,9 +297,11 @@ export interface CommunityPost {
   location?: Coordinates;
   placeName?: string;
   city?: string;
-  /** Free-text time, e.g. "Sat 7:00 PM" (events/gatherings). */
+  /** Free-text time, e.g. "Sat 7:00 PM" (events/gatherings/meetups). */
   whenText?: string;
   url?: string;
+  /** Number of people who marked interested / RSVP'd. */
+  interested?: number;
   contributor?: string;
   createdAt?: string;
   distanceMeters?: number;

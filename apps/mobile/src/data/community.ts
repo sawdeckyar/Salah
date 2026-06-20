@@ -2,18 +2,23 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CommunityCategory, CommunityPost } from '@salah/core';
 import {
   addCommunityPostRemote,
+  bumpInterestRemote,
   fetchCommunityPosts,
   remoteEnabled,
 } from './remote';
 
 /**
- * Community posts (Travel hub: fun / events / gatherings). Uses Supabase when
- * configured, else on-device AsyncStorage. Replace nothing else to go shared.
+ * Community posts (Explore hub: fun / events / gatherings / meetups). Uses
+ * Supabase when configured, else on-device AsyncStorage. Tracks which posts THIS
+ * device is "interested" in (RSVP toggle), persisted locally either way.
  */
 const KEY = 'salah.community.v1';
+const INTEREST_KEY = 'salah.communityInterest.v1';
 
 let cache: CommunityPost[] = [];
+let interested: Record<string, boolean> = {};
 let loadedLocal = false;
+let loadedInterest = false;
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -31,8 +36,24 @@ async function ensureLocal() {
   loadedLocal = true;
 }
 
+async function ensureInterest() {
+  if (loadedInterest) return;
+  try {
+    const raw = await AsyncStorage.getItem(INTEREST_KEY);
+    interested = raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+  } catch {
+    interested = {};
+  }
+  loadedInterest = true;
+}
+
 export async function loadCommunity(): Promise<void> {
+  await ensureInterest();
   if (!remoteEnabled()) await ensureLocal();
+}
+
+export function isInterested(postId: string): boolean {
+  return !!interested[postId];
 }
 
 /** Posts for a category (remote when configured, else local). */
@@ -55,8 +76,31 @@ export async function addCommunity(post: CommunityPost): Promise<void> {
     return;
   }
   await ensureLocal();
-  cache = [{ ...post, contributor: 'you' }, ...cache];
+  cache = [{ ...post, contributor: 'you', interested: 0 }, ...cache];
   await AsyncStorage.setItem(KEY, JSON.stringify(cache));
+  emit();
+}
+
+/** Toggle the current device's interest in a post; updates the shared count. */
+export async function toggleInterest(post: CommunityPost): Promise<void> {
+  await ensureInterest();
+  const nowInterested = !interested[post.id];
+  const delta = nowInterested ? 1 : -1;
+  interested = { ...interested, [post.id]: nowInterested };
+  if (!nowInterested) delete interested[post.id];
+  await AsyncStorage.setItem(INTEREST_KEY, JSON.stringify(interested));
+
+  if (remoteEnabled()) {
+    await bumpInterestRemote(post.id, delta);
+  } else {
+    await ensureLocal();
+    cache = cache.map((p) =>
+      p.id === post.id
+        ? { ...p, interested: Math.max(0, (p.interested ?? 0) + delta) }
+        : p,
+    );
+    await AsyncStorage.setItem(KEY, JSON.stringify(cache));
+  }
   emit();
 }
 

@@ -8,7 +8,7 @@ import {
 } from '@salah/core';
 import { useTheme } from '../theme';
 import { DEFAULT_MADHAB, DEFAULT_METHOD } from '../config';
-import { formatHHmm, formatTime, prayerLabel } from '../format';
+import { formatDistance, formatHHmm, formatTime, prayerLabel } from '../format';
 
 /**
  * Vector map (MapLibre GL JS in a WebView) — key-free (OpenFreeMap), runs in
@@ -65,12 +65,7 @@ export function MosqueMap({
           lon: m.location.longitude,
           name: m.name,
           hasTimes: !!m.times?.iqama || (m.times?.jumuah?.length ?? 0) > 0,
-          dist:
-            m.distanceMeters != null
-              ? m.distanceMeters < 1000
-                ? `${Math.round(m.distanceMeters)} m`
-                : `${(m.distanceMeters / 1000).toFixed(1)} km`
-              : '',
+          dist: formatDistance(m.distanceMeters),
           next: status.next === 'none' ? '' : prayerLabel(status.next),
           nextAdhan: status.nextTime ? formatTime(status.nextTime) : '',
           nextIqama: iqamaRaw ? formatHHmm(iqamaRaw) : '',

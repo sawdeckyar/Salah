@@ -202,6 +202,7 @@ interface CommunityRow {
   city: string | null;
   when_text: string | null;
   url: string | null;
+  interested: number | null;
   contributor: string | null;
   created_at: string;
 }
@@ -220,9 +221,19 @@ function rowToPost(r: CommunityRow): CommunityPost {
     city: r.city ?? undefined,
     whenText: r.when_text ?? undefined,
     url: r.url ?? undefined,
+    interested: r.interested ?? 0,
     contributor: r.contributor ?? undefined,
     createdAt: r.created_at,
   };
+}
+
+/** Increment/decrement a post's interest counter (RSVP toggle). */
+export async function bumpInterestRemote(
+  postId: string,
+  delta: number,
+): Promise<void> {
+  if (!supabase) return;
+  await supabase.rpc('bump_interest', { p_id: postId, p_delta: delta });
 }
 
 export async function fetchCommunityPosts(
