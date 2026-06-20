@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useColorScheme } from 'react-native';
+import { ensureAuth } from '../src/lib/supabase';
 import { loadLocalTimes } from '../src/data/localSubmissions';
 import { loadParking } from '../src/data/parkingStore';
 import { loadCommunity } from '../src/data/community';
@@ -11,9 +12,12 @@ export default function RootLayout() {
   const scheme = useColorScheme();
 
   useEffect(() => {
-    loadLocalTimes();
-    loadParking();
-    loadCommunity();
+    // Establish an anonymous session first so backend writes are authorized.
+    ensureAuth().finally(() => {
+      loadLocalTimes();
+      loadParking();
+      loadCommunity();
+    });
   }, []);
 
   return (

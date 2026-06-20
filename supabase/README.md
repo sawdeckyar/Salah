@@ -51,20 +51,32 @@ selects the project purely from env vars — no code change between them.
 - `confirm_times(p_mosque_id, p_vote)` RPC — atomically updates counts and
   promotes/rejects using the same thresholds as `@salah/core` (net ±3).
 
-## Hardening before go-live (important)
+## Hardening — `0004_hardening.sql` (implemented)
 
-The MVP RLS policies are **open** (anonymous insert/update/delete) so
-crowdsourcing works with no login. Before a public launch, tighten them:
+`0001`–`0003` ship intentionally **open** policies (anonymous writes) so you can
+develop with zero auth. **`0004_hardening.sql`** locks the backend down for a
+public launch:
 
-1. Turn on Supabase **Auth** (anonymous or email) and add `owner_id uuid default
-   auth.uid()` to the tables.
-2. Restrict `update`/`delete` to the owner (e.g.
-   `using (auth.uid() = owner_id)`); keep `select` public.
-3. Route confirm/dispute only through the `confirm_times` RPC (revoke direct
-   `update` on the counts) to prevent vote tampering.
-4. Add basic rate limiting / abuse protection and a moderation view for
-   disputed or low-confidence rows.
-5. Re-check `db/` migrations apply cleanly to a fresh **prod** project.
+- **Anonymous Auth required for writes.** The app signs in anonymously
+  (`ensureAuth` in `src/lib/supabase.ts`), giving each device a stable
+  `auth.uid()`. **You must enable it:** dashboard → Authentication → Providers →
+  **Anonymous** → enable. (Without it, reads still work but writes are rejected.)
+- **Ownership.** `owner_id uuid default auth.uid()` on every table; insert
+  requires `auth.uid() = owner_id`; parking & community **delete is owner-only**.
+- **Vote integrity.** `time_confirmation` is now **one row per user**
+  (`unique(submission_id, user_id)`); `confirm_times()` upserts the user's vote
+  and **recomputes** counts from rows — no raw counter to inflate.
+- **RSVP integrity.** New `community_interest(post_id, user_id)` table, one row
+  per user; `set_interest()` toggles it and maintains the displayed counter.
+- **Counter columns are not directly writable** (direct `UPDATE` revoked); only
+  the SECURITY DEFINER RPCs change counts/status. Mosque-time *content* stays
+  editable by any signed-in user (crowdsourced), via column-scoped grants.
+
+Run order on each project: `0001` → `0002` → `0003` → `0004`, then enable
+Anonymous sign-ins.
+
+Still recommended before a big launch: basic rate limiting / abuse protection,
+and a moderation view for disputed or low-confidence rows.
 
 ## Going live, clean
 

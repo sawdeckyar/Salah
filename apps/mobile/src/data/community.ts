@@ -2,9 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CommunityCategory, CommunityPost } from '@salah/core';
 import {
   addCommunityPostRemote,
-  bumpInterestRemote,
   fetchCommunityPosts,
   remoteEnabled,
+  setInterestRemote,
 } from './remote';
 
 /**
@@ -91,7 +91,7 @@ export async function toggleInterest(post: CommunityPost): Promise<void> {
   await AsyncStorage.setItem(INTEREST_KEY, JSON.stringify(interested));
 
   if (remoteEnabled()) {
-    await bumpInterestRemote(post.id, delta);
+    await setInterestRemote(post.id, nowInterested);
   } else {
     await ensureLocal();
     cache = cache.map((p) =>

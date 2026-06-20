@@ -227,13 +227,16 @@ function rowToPost(r: CommunityRow): CommunityPost {
   };
 }
 
-/** Increment/decrement a post's interest counter (RSVP toggle). */
-export async function bumpInterestRemote(
+/** Set (or clear) this user's interest in a post; one row per user server-side. */
+export async function setInterestRemote(
   postId: string,
-  delta: number,
+  interested: boolean,
 ): Promise<void> {
   if (!supabase) return;
-  await supabase.rpc('bump_interest', { p_id: postId, p_delta: delta });
+  await supabase.rpc('set_interest', {
+    p_post_id: postId,
+    p_interested: interested,
+  });
 }
 
 export async function fetchCommunityPosts(
