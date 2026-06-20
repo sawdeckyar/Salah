@@ -1,7 +1,8 @@
 # Salah — Mobile app (Expo / React Native)
 
-The consumer app, built on **[`@salah/core`](../../packages/core)**. Expo SDK 56,
-React Native 0.85, React 19, expo-router.
+The consumer app, built on **[`@salah/core`](../../packages/core)**. Expo SDK 54,
+React Native 0.81, React 19, expo-router. (SDK 54 is pinned to match the Expo Go
+app currently published on the App Store / Play Store.)
 
 ## Screens
 
