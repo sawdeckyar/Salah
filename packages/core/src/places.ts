@@ -20,6 +20,10 @@ export interface Place {
   cuisine?: string;
   /** 'only' = fully halal, 'yes' = halal options available. */
   halal?: string;
+  /** Photo URL from OSM (image tag), if present. */
+  imageUrl?: string;
+  website?: string;
+  phone?: string;
   distanceMeters?: number;
 }
 
@@ -73,6 +77,7 @@ export function parseHalalResponse(data: unknown): Place[] {
     const id = `osm:${el.type}/${el.id}`;
     if (seen.has(id)) continue;
     seen.add(id);
+    const image = tags.image;
     out.push({
       id,
       name: tags.name,
@@ -80,6 +85,9 @@ export function parseHalalResponse(data: unknown): Place[] {
       kind: kindOf(tags),
       cuisine: tags.cuisine?.replace(/_/g, ' ').replace(/;/g, ', '),
       halal: tags['diet:halal'],
+      imageUrl: image && /^https?:\/\//i.test(image) ? image : undefined,
+      website: tags.website ?? tags['contact:website'],
+      phone: tags.phone ?? tags['contact:phone'],
     });
   }
   return out;

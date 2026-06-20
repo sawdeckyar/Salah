@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
   ActivityIndicator,
+  Image,
   Linking,
   StyleSheet,
   Text,
@@ -21,12 +22,14 @@ import {
 } from '@salah/core';
 import { Screen } from '../../src/components/Screen';
 import { Card } from '../../src/components/Card';
+import { FoodCard } from '../../src/components/FoodCard';
 import { Loading, Message } from '../../src/components/StateView';
 import { useLocation } from '../../src/hooks/useLocation';
 import { useTheme } from '../../src/theme';
 import { httpDeps } from '../../src/config';
 import { formatDistance } from '../../src/format';
 import { openDirections } from '../../src/lib/maps';
+import { categoryImage } from '../../src/lib/images';
 import {
   getCommunity,
   isInterested,
@@ -42,14 +45,6 @@ const TABS: { key: Tab; label: string; emoji: string }[] = [
   { key: 'gathering', label: 'Gatherings', emoji: '🤝' },
   { key: 'meetup', label: 'Meetups', emoji: '👥' },
 ];
-const KIND_EMOJI: Record<string, string> = {
-  restaurant: '🍽️',
-  cafe: '☕',
-  fast_food: '🥙',
-  shop: '🛒',
-  other: '📍',
-};
-
 export default function TravelScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -130,7 +125,7 @@ export default function TravelScreen() {
       {!area ? (
         <Loading label="Finding your area…" />
       ) : tab === 'food' ? (
-        <FoodList area={area.coords} onOpen={(p) => openDirections(p.location, p.name)} />
+        <FoodList area={area.coords} />
       ) : (
         <CommunityList
           category={tab}
@@ -152,8 +147,7 @@ export default function TravelScreen() {
   );
 }
 
-function FoodList({ area, onOpen }: { area: Coordinates; onOpen: (p: Place) => void }) {
-  const theme = useTheme();
+function FoodList({ area }: { area: Coordinates }) {
   const [state, setState] = useState<{ loading: boolean; places: Place[] }>({ loading: true, places: [] });
 
   useEffect(() => {
@@ -183,20 +177,11 @@ function FoodList({ area, onOpen }: { area: Coordinates; onOpen: (p: Place) => v
     );
 
   return (
-    <Card>
+    <View>
       {state.places.map((p) => (
-        <TouchableOpacity key={p.id} onPress={() => onOpen(p)} style={[styles.row, { borderTopColor: theme.border }]}>
-          <Text style={styles.emoji}>{KIND_EMOJI[p.kind] ?? '📍'}</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>{p.name}</Text>
-            <Text style={{ color: theme.text3, fontSize: 12 }} numberOfLines={1}>
-              {[p.cuisine, p.halal === 'only' ? 'fully halal' : 'halal options'].filter(Boolean).join(' · ')}
-            </Text>
-          </View>
-          <Text style={{ color: theme.primary, fontWeight: '700' }}>{formatDistance(p.distanceMeters)}</Text>
-        </TouchableOpacity>
+        <FoodCard key={p.id} place={p} />
       ))}
-    </Card>
+    </View>
   );
 }
 
@@ -267,7 +252,13 @@ function CommunityList({
                   else if (p.location) openDirections(p.location, p.title);
                 }}
                 activeOpacity={p.url || p.location ? 0.6 : 1}
+                style={{ flexDirection: 'row', gap: 12 }}
               >
+                <Image
+                  source={{ uri: categoryImage(category, p.id) }}
+                  style={[styles.thumb, { backgroundColor: theme.surface2 }]}
+                />
+                <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={[styles.name, { color: theme.text, flex: 1 }]}>{p.title}</Text>
                   {(p.url || p.location) && <Text style={{ color: theme.text3 }}>›</Text>}
@@ -286,6 +277,7 @@ function CommunityList({
                     {p.description}
                   </Text>
                 ) : null}
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -328,6 +320,7 @@ const styles = StyleSheet.create({
   tab: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderTopWidth: StyleSheet.hairlineWidth },
   postRow: { paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth, gap: 8 },
+  thumb: { width: 64, height: 64, borderRadius: 12 },
   interestBtn: {
     alignSelf: 'flex-start',
     borderWidth: 1.5,

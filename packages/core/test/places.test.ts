@@ -15,7 +15,15 @@ const SAMPLE = {
       id: 1,
       lat: 40.71,
       lon: -74.0,
-      tags: { name: 'Halal Grill', amenity: 'restaurant', cuisine: 'turkish', 'diet:halal': 'only' },
+      tags: {
+        name: 'Halal Grill',
+        amenity: 'restaurant',
+        cuisine: 'turkish',
+        'diet:halal': 'only',
+        image: 'https://example.com/grill.jpg',
+        website: 'https://grill.example',
+        phone: '+1-212-555-0001',
+      },
     },
     {
       type: 'way',
@@ -45,6 +53,9 @@ describe('parseHalalResponse', () => {
       kind: 'restaurant',
       cuisine: 'turkish',
       halal: 'only',
+      imageUrl: 'https://example.com/grill.jpg',
+      website: 'https://grill.example',
+      phone: '+1-212-555-0001',
     });
     expect(places[1].kind).toBe('cafe');
   });
