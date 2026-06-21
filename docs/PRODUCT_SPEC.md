@@ -1,6 +1,10 @@
 # Salah — Product Specification
 
-_Last updated: 2026-06-19 · Status: design finalized, core engine built_
+_Last updated: 2026-06-21 · Status: design finalized, core engine built_
+
+> **North star & strategy now live in [`VISION.md`](VISION.md)** (finalized):
+> "Mosque times, solved" · primary user = travellers/newcomers · free + sadaqah ·
+> core + community built in parallel. This spec covers feature detail.
 
 ## 1. Problem
 

@@ -46,6 +46,7 @@ doesn't have yet). That merge is the core of the product — see
 ```
 Salah/
 ├── docs/
+│   ├── VISION.md           # the north star: positioning, audience, model, roadmap
 │   ├── PRODUCT_SPEC.md     # problem, users, features, MVP scope, roadmap
 │   ├── ARCHITECTURE.md     # system design, data flow, platform plan
 │   ├── DATA_MODEL.md       # registry schema + merge semantics
