@@ -1,0 +1,34 @@
+name: EAS Update (OTA)
+
+# Pushes an over-the-air JS update to the "preview" channel on every push, so an
+# already-installed preview/dev build refreshes without a rebuild. Lets you
+# iterate from your iPhone: Claude Code pushes -> this runs -> reopen the app.
+#
+# Prerequisites (one-time): EXPO_TOKEN secret, and `eas update:configure` run
+# once (adds expo-updates). See docs/CLOUD_BUILD.md.
+
+on:
+  push:
+    branches: [main, claude/prayer-times-location-xqxowf]
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install deps (workspace root)
+        run: npm install
+        working-directory: .
+      - name: Publish OTA update
+        run: eas update --branch preview --message "${{ github.event.head_commit.message }}" --non-interactive

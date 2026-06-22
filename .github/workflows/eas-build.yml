@@ -1,0 +1,41 @@
+name: EAS Build
+
+# Trigger from your iPhone: github.com (or the GitHub mobile app) -> Actions ->
+# "EAS Build" -> Run workflow -> pick platform/profile. Runs entirely in the
+# cloud on EAS; no PC needed. Requires the EXPO_TOKEN repo secret (see
+# docs/CLOUD_BUILD.md), and for iOS an Apple Developer account + EAS credentials.
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to build
+        type: choice
+        default: android
+        options: [android, ios, all]
+      profile:
+        description: EAS build profile
+        type: choice
+        default: preview
+        options: [preview, production, development]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install deps (workspace root)
+        run: npm install
+        working-directory: .
+      - name: EAS build
+        run: eas build --platform ${{ inputs.platform }} --profile ${{ inputs.profile }} --non-interactive --no-wait
