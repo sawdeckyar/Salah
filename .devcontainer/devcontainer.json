@@ -1,0 +1,17 @@
+{
+  "name": "Salah dev",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "postCreateCommand": "npm install && npm install -g eas-cli @expo/ngrok",
+  "forwardPorts": [8081],
+  "portsAttributes": {
+    "8081": { "label": "Metro" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["expo.vscode-expo-tools", "dbaeumer.vscode-eslint"]
+    }
+  }
+}
